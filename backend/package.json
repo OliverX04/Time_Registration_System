@@ -1,0 +1,12 @@
+{
+  "name": "time-registration-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Backend for the Time Registration System",
+  "scripts": {
+    "db:init": "node src/database/init.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^13.0.3"
+  }
+}

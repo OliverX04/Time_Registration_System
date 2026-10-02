@@ -16,7 +16,7 @@ function SupervisorDashboard() {
 
     return (
         <div className="auth-page">
-            <div className="auth-card">
+            <div className="auth-card dashboard-card">
                 <h1>
                     Hello {user?.firstName}
                 </h1>

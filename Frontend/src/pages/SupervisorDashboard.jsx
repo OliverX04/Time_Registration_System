@@ -3,6 +3,7 @@ import {
     getCurrentUser,
     logoutUser
 } from "../services/authService.js"
+import TaskDefinitionPanel from "../components/TaskDefinitionPanel.jsx"
 
 function SupervisorDashboard() {
     const navigate = useNavigate()
@@ -23,6 +24,8 @@ function SupervisorDashboard() {
                 <p className="auth-subtitle">
                     Welcome to your Supervisor Dashboard.
                 </p>
+
+                <TaskDefinitionPanel userRole="SUPERVISOR" />
 
                 <button
                     className="auth-button"

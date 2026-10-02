@@ -3,6 +3,7 @@ import {
     getCurrentUser,
     logoutUser
 } from "../services/authService.js"
+import TaskDefinitionPanel from "../components/TaskDefinitionPanel.jsx"
 
 function InternDashboard() {
     const navigate = useNavigate()
@@ -23,6 +24,8 @@ function InternDashboard() {
                 <p className="auth-subtitle">
                     Welcome to your Intern Dashboard.
                 </p>
+
+                <TaskDefinitionPanel userRole="INTERN" />
 
                 <button
                     className="auth-button"

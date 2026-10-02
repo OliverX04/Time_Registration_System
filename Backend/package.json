@@ -7,7 +7,8 @@
   "test": "echo \"Error: no test specified\" && exit 1",
   "db:init": "node src/database/init.js",
   "start": "node src/index.js",
-  "db:seed-supervisor": "node src/database/seedSupervisor.js"
+  "db:seed-supervisor": "node src/database/seedSupervisor.js",
+  "db:seed-dev": "node src/database/seedDevelopmentData.js"
 },
   "keywords": [],
   "author": "",

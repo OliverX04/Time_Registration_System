@@ -5,7 +5,7 @@ import {
     getProjectTasks
 } from "../services/projectService.js"
 
-function TaskDefinitionPanel({ userRole }) {
+function TaskDefinitionPanel({ userRole, projectsVersion = 0 }) {
     const [projects, setProjects] = useState([])
     const [selectedProjectId, setSelectedProjectId] = useState("")
     const [tasks, setTasks] = useState([])
@@ -14,46 +14,55 @@ function TaskDefinitionPanel({ userRole }) {
     const [error, setError] = useState("")
     const [success, setSuccess] = useState("")
     const [isLoading, setIsLoading] = useState(true)
+    const [isSubmitting, setIsSubmitting] = useState(false)
+    const [tasksVersion, setTasksVersion] = useState(0)
+    const selectedProject = projects.find((project) => project.id === selectedProjectId)
 
     useEffect(() => {
+        let cancelled = false
         async function loadProjects() {
+            setIsLoading(true)
             try {
                 const loadedProjects = await getProjects()
 
+                if (cancelled) return
                 setProjects(loadedProjects)
-                setSelectedProjectId(loadedProjects[0]?.id || "")
+                setSelectedProjectId((currentId) => currentId || loadedProjects[0]?.id || "")
             } catch (err) {
-                setError(err.message)
+                if (!cancelled) setError(`Could not load projects. ${err.message}`)
             } finally {
-                setIsLoading(false)
+                if (!cancelled) setIsLoading(false)
             }
         }
 
         loadProjects()
-    }, [])
+        return () => { cancelled = true }
+    }, [projectsVersion])
 
     useEffect(() => {
+        let cancelled = false
         async function loadTasks() {
-            if (!selectedProjectId) {
-                setTasks([])
-                return
-            }
+            setTasks([])
+            if (!selectedProject) return
 
             try {
-                const loadedTasks = await getProjectTasks(selectedProjectId)
+                const loadedTasks = await getProjectTasks(selectedProject.id)
 
-                setTasks(loadedTasks)
+                if (!cancelled) setTasks(loadedTasks)
             } catch (err) {
-                setError(err.message)
+                if (!cancelled) setError(`Could not load tasks. ${err.message}`)
             }
         }
 
         loadTasks()
-    }, [selectedProjectId])
+        return () => { cancelled = true }
+    }, [selectedProject, tasksVersion])
 
     async function handleCreateTask(event) {
         event.preventDefault()
+        if (isSubmitting || isLoading || !selectedProject) return
 
+        setIsSubmitting(true)
         setError("")
         setSuccess("")
 
@@ -64,14 +73,14 @@ function TaskDefinitionPanel({ userRole }) {
                 description
             )
 
-            const loadedTasks = await getProjectTasks(selectedProjectId)
-
-            setTasks(loadedTasks)
             setTitle("")
             setDescription("")
             setSuccess("Task created.")
+            setTasksVersion((version) => version + 1)
         } catch (err) {
             setError(err.message)
+        } finally {
+            setIsSubmitting(false)
         }
     }
 
@@ -83,10 +92,6 @@ function TaskDefinitionPanel({ userRole }) {
         )
     }
 
-    const selectedProject = projects.find(
-        (project) => project.id === selectedProjectId
-    )
-
     function renderProjectSelect() {
         return (
             <div className="form-group">
@@ -97,10 +102,14 @@ function TaskDefinitionPanel({ userRole }) {
                 <select
                     id={`${userRole}-project`}
                     value={selectedProjectId}
-                    onChange={(event) =>
+                    disabled={isSubmitting}
+                    onChange={(event) => {
                         setSelectedProjectId(event.target.value)
-                    }
+                        setError("")
+                        setSuccess("")
+                    }}
                 >
+                    {!selectedProject && <option value={selectedProjectId} disabled>Choose an active project</option>}
                     {projects.map((project) => (
                         <option
                             key={project.id}
@@ -126,6 +135,7 @@ function TaskDefinitionPanel({ userRole }) {
                         id={`${userRole}-taskTitle`}
                         type="text"
                         value={title}
+                        disabled={isSubmitting}
                         onChange={(event) =>
                             setTitle(event.target.value)
                         }
@@ -141,6 +151,7 @@ function TaskDefinitionPanel({ userRole }) {
                     <textarea
                         id={`${userRole}-taskDescription`}
                         value={description}
+                        disabled={isSubmitting}
                         onChange={(event) =>
                             setDescription(event.target.value)
                         }
@@ -149,13 +160,13 @@ function TaskDefinitionPanel({ userRole }) {
                 </div>
 
                 {error && (
-                    <p className="error-message">
+                    <p className="error-message" role="alert">
                         {error}
                     </p>
                 )}
 
                 {success && (
-                    <p className="success-message">
+                    <p className="success-message" role="status">
                         {success}
                     </p>
                 )}
@@ -163,8 +174,9 @@ function TaskDefinitionPanel({ userRole }) {
                 <button
                     type="submit"
                     className="auth-button"
+                    disabled={isSubmitting || !selectedProject}
                 >
-                    Create Task
+                    {isSubmitting ? "Creating task..." : "Create Task"}
                 </button>
             </form>
         )
@@ -216,9 +228,15 @@ function TaskDefinitionPanel({ userRole }) {
                     : "Create your own task for the selected project."}
             </p>
 
+            {selectedProjectId && !selectedProject && (
+                <p className="error-message" role="alert">
+                    The selected project is no longer active. Your task draft is kept. Choose an active project to continue.
+                </p>
+            )}
+
             {projects.length === 0 ? (
-                <p className="error-message">
-                    No projects found. Seed development data first.
+                <p className={error ? "error-message" : "task-empty"} role={error ? "alert" : undefined}>
+                    {error || "No active projects available."}
                 </p>
             ) : userRole === "SUPERVISOR" ? (
                 <>
@@ -226,15 +244,12 @@ function TaskDefinitionPanel({ userRole }) {
                         <div>
                             <h3>Project Context</h3>
                             <p>
-                                Selected project: {selectedProject?.name}
+                                Selected project: {selectedProject?.name || "Choose an active project"}
                             </p>
                         </div>
 
                         {renderProjectSelect()}
 
-                        <div className="project-placeholder">
-                            Project management placeholder
-                        </div>
                     </div>
 
                     <div className="task-layout task-layout-supervisor">

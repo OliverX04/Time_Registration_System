@@ -99,6 +99,24 @@
     background-color: #1d4ed8;
 }
 
+.auth-button:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+.field-error {
+    margin: 6px 0 0;
+    font-size: 13px;
+}
+
+.field-error {
+    color: #b91c1c;
+}
+
+.form-group input[aria-invalid="true"] {
+    border-color: #b91c1c;
+}
+
 .auth-switch {
     margin-top: 24px;
     margin-bottom: 0;
@@ -156,7 +174,7 @@
 
 .project-context {
     display: grid;
-    grid-template-columns: 1fr 280px 260px;
+    grid-template-columns: 1fr 280px;
     gap: 18px;
     align-items: end;
     padding: 18px;
@@ -177,21 +195,13 @@
     color: #111827;
 }
 
-.project-context p,
-.project-placeholder {
+.project-context p {
     color: #6b7280;
     font-size: 14px;
 }
 
 .project-context .form-group {
     margin-bottom: 0;
-}
-
-.project-placeholder {
-    padding: 11px 12px;
-    border: 1px solid #d1d5db;
-    border-radius: 7px;
-    background-color: white;
 }
 
 .task-layout {

@@ -2,10 +2,31 @@ import { getToken } from "./authService.js"
 
 const API_URL = "http://localhost:3000"
 
-export async function getProjects() {
-    const data = await apiRequest("/projects")
+export async function getProjects(includeArchived = false) {
+    const data = await apiRequest(includeArchived ? "/projects?includeArchived=true" : "/projects")
 
     return data.projects
+}
+
+export async function createProject(name, description) {
+    const data = await apiRequest("/projects", {
+        method: "POST",
+        body: JSON.stringify({ name, description })
+    })
+    return data.project
+}
+
+export async function updateProject(projectId, name, description) {
+    const data = await apiRequest(`/projects/${projectId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ name, description })
+    })
+    return data.project
+}
+
+export async function archiveProject(projectId) {
+    const data = await apiRequest(`/projects/${projectId}/archive`, { method: "POST" })
+    return data.project
 }
 
 export async function getProjectTasks(projectId) {
@@ -41,7 +62,9 @@ async function apiRequest(path, options = {}) {
     const data = await response.json()
 
     if (!response.ok) {
-        throw new Error(data.error || "Request failed")
+        const error = new Error(data.error || "Request failed")
+        error.fieldErrors = data.fieldErrors || {}
+        throw error
     }
 
     return data

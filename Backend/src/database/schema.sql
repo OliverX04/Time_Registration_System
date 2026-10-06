@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS project (
     created_by_user_id TEXT NOT NULL,
     name TEXT NOT NULL,
     description TEXT NOT NULL DEFAULT '',
+    archived_at TEXT,
     FOREIGN KEY (created_by_user_id) REFERENCES user_account(id)
 );
 

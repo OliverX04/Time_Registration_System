@@ -2,20 +2,26 @@ import express from "express"
 import db from "../database/db.js"
 import { comparePassword } from "../security/password.js"
 import { createToken } from "../security/jwt.js"
+import { validateLogin } from "../validation/accounts.js"
 
 export const loginRouter = express.Router()
 
 loginRouter.post("/", async (req, res) => {
-    const { email, password } = req.body
+    const { values, fieldErrors } = validateLogin(req.body)
 
-    if (!email || !password) {
+    if (Object.keys(fieldErrors).length) {
         return res.status(400).send({
-            error: "Email and password are required"
+            error: "Please enter your email and password.",
+            fieldErrors
         })
     }
 
     try {
-        const user = await authenticateUser(email, password)
+        const user = await authenticateUser(values.email, values.password)
+
+        if (!user) {
+            return res.status(401).send({ error: "Unauthorized" })
+        }
 
         const token = createToken(user)
 
@@ -32,8 +38,8 @@ loginRouter.post("/", async (req, res) => {
                 }
             })
     } catch (err) {
-        res.status(401).send({
-            error: "Unauthorized"
+        res.status(500).send({
+            error: "Error logging in"
         })
     }
 })
@@ -44,11 +50,11 @@ async function authenticateUser(email, password) {
         .get(email)
 
     if (!user) {
-        throw new Error("Invalid credentials")
+        return null
     }
 
     if (!user.is_enabled) {
-        throw new Error("Account disabled")
+        return null
     }
 
     const passwordMatch = await comparePassword(
@@ -57,7 +63,7 @@ async function authenticateUser(email, password) {
     )
 
     if (!passwordMatch) {
-        throw new Error("Invalid credentials")
+        return null
     }
 
     return user

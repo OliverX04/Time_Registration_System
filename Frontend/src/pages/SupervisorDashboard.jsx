@@ -1,13 +1,20 @@
+import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import {
     getCurrentUser,
     logoutUser
 } from "../services/authService.js"
 import TaskDefinitionPanel from "../components/TaskDefinitionPanel.jsx"
+import ProjectManagementPanel from "../components/ProjectManagementPanel.jsx"
 
 function SupervisorDashboard() {
     const navigate = useNavigate()
     const user = getCurrentUser()
+    const [projectsVersion, setProjectsVersion] = useState(0)
+
+    function handleProjectsChanged() {
+        setProjectsVersion((version) => version + 1)
+    }
 
     function handleLogout() {
         logoutUser()
@@ -25,7 +32,8 @@ function SupervisorDashboard() {
                     Welcome to your Supervisor Dashboard.
                 </p>
 
-                <TaskDefinitionPanel userRole="SUPERVISOR" />
+                {user?.role === "SUPERVISOR" && <ProjectManagementPanel onProjectsChanged={handleProjectsChanged} />}
+                <TaskDefinitionPanel projectsVersion={projectsVersion} userRole="SUPERVISOR" />
 
                 <button
                     className="auth-button"

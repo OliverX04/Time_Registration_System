@@ -1,40 +1,59 @@
 import express from "express"
 import db from "../database/db.js"
 import { hashPassword } from "../security/password.js"
+import { validateRegistration } from "../validation/accounts.js"
 
 export const signupRouter = express.Router()
 
 signupRouter.post("/", async (req, res) => {
-    const { firstName, lastName, email, password } = req.body
+    const { values, fieldErrors } = validateRegistration(req.body)
 
-    if (!firstName || !lastName || !email || !password) {
+    if (Object.keys(fieldErrors).length) {
         return res.status(400).send({
-            error: "All fields are required"
+            error: "Please correct the registration fields.",
+            fieldErrors
         })
     }
 
-    try {
-        await createUser(firstName, lastName, email, password)
+    const conflict = findConflict(values)
 
-        res.send({
+    if (conflict) {
+        return res.status(409).send(conflict)
+    }
+
+    try {
+        await createUser(values)
+
+        res.status(201).send({
             message: "User created!"
         })
     } catch (err) {
+        if (err.code === "SQLITE_CONSTRAINT_UNIQUE") {
+            const conflict = findConflict(values)
+
+            if (conflict) {
+                return res.status(409).send(conflict)
+            }
+        }
+
         res.status(500).send({
             error: "Error signing up"
         })
     }
 })
 
-async function createUser(firstName, lastName, email, password) {
-    const existingUser = db
-        .prepare("SELECT * FROM user_account WHERE email = ?")
-        .get(email)
-
-    if (existingUser) {
-        throw new Error("Email already registered")
+function findConflict({ email }) {
+    if (db.prepare("SELECT id FROM user_account WHERE email = ?").get(email)) {
+        return {
+            error: "An account with these details already exists.",
+            fieldErrors: { email: "This email address is already registered." }
+        }
     }
 
+    return null
+}
+
+async function createUser({ firstName, lastName, email, password }) {
     const hashedPassword = await hashPassword(password)
 
     const insertUser = db.prepare(`
@@ -55,11 +74,4 @@ async function createUser(firstName, lastName, email, password) {
         hashedPassword,
         "INTERN"
     )
-
-    return {
-        firstName,
-        lastName,
-        email,
-        role: "INTERN"
-    }
 }

@@ -3,6 +3,7 @@ import Register from "./pages/Register.jsx"
 import Login from "./pages/Login.jsx"
 import InternDashboard from "./pages/InternDashboard.jsx"
 import SupervisorDashboard from "./pages/SupervisorDashboard.jsx"
+import ProtectedRoute from "./components/ProtectedRoute.jsx"
 import "./styles/auth.css"
 
 function App() {
@@ -20,12 +21,20 @@ function App() {
 
             <Route
                 path="/intern-dashboard"
-                element={<InternDashboard />}
+                element={
+                    <ProtectedRoute requiredRole="INTERN">
+                        <InternDashboard />
+                    </ProtectedRoute>
+                }
             />
 
             <Route
                 path="/supervisor-dashboard"
-                element={<SupervisorDashboard />}
+                element={
+                    <ProtectedRoute requiredRole="SUPERVISOR">
+                        <SupervisorDashboard />
+                    </ProtectedRoute>
+                }
             />
 
             <Route

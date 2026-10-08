@@ -17,7 +17,9 @@ export async function registerUser(firstName, lastName, email, password) {
     const data = await response.json()
 
     if (!response.ok) {
-        throw new Error(data.error || "Registration failed")
+        const error = new Error(data.error || "Registration failed")
+        error.fieldErrors = data.fieldErrors || {}
+        throw error
     }
 
     return data

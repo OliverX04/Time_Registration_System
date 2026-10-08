@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS project (
     created_by_user_id TEXT NOT NULL,
     name TEXT NOT NULL,
     description TEXT NOT NULL DEFAULT '',
+    archived_at TEXT,
     FOREIGN KEY (created_by_user_id) REFERENCES user_account(id)
 );
 
@@ -50,9 +51,11 @@ CREATE TABLE IF NOT EXISTS project_assignment (
 CREATE TABLE IF NOT EXISTS task (
     id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
     project_id TEXT NOT NULL,
+    created_by_user_id TEXT,
     title TEXT NOT NULL,
     description TEXT NOT NULL DEFAULT '',
-    FOREIGN KEY (project_id) REFERENCES project(id)
+    FOREIGN KEY (project_id) REFERENCES project(id),
+    FOREIGN KEY (created_by_user_id) REFERENCES user_account(id)
 );
 
 CREATE TABLE IF NOT EXISTS task_assignment (

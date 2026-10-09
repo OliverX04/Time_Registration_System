@@ -5,7 +5,7 @@ import {
     getProjectTasks
 } from "../services/projectService.js"
 
-function TaskDefinitionPanel({ userRole, projectsVersion = 0 }) {
+function TaskDefinitionPanel({ userRole }) {
     const [projects, setProjects] = useState([])
     const [selectedProjectId, setSelectedProjectId] = useState("")
     const [tasks, setTasks] = useState([])
@@ -37,7 +37,7 @@ function TaskDefinitionPanel({ userRole, projectsVersion = 0 }) {
 
         loadProjects()
         return () => { cancelled = true }
-    }, [projectsVersion])
+    }, [])
 
     useEffect(() => {
         let cancelled = false

@@ -3,6 +3,8 @@ import Register from "./pages/Register.jsx"
 import Login from "./pages/Login.jsx"
 import InternDashboard from "./pages/InternDashboard.jsx"
 import SupervisorDashboard from "./pages/SupervisorDashboard.jsx"
+import Projects from "./pages/Projects.jsx"
+import Tasks from "./pages/Tasks.jsx"
 import ProtectedRoute from "./components/ProtectedRoute.jsx"
 import "./styles/auth.css"
 
@@ -33,6 +35,33 @@ function App() {
                 element={
                     <ProtectedRoute requiredRole="SUPERVISOR">
                         <SupervisorDashboard />
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/intern-dashboard/tasks"
+                element={
+                    <ProtectedRoute requiredRole="INTERN">
+                        <Tasks />
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/supervisor-dashboard/projects"
+                element={
+                    <ProtectedRoute requiredRole="SUPERVISOR">
+                        <Projects />
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/supervisor-dashboard/tasks"
+                element={
+                    <ProtectedRoute requiredRole="SUPERVISOR">
+                        <Tasks />
                     </ProtectedRoute>
                 }
             />

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { archiveProject, createProject, getProjects, getProjectTasks, updateProject } from "../services/projectService.js"
 import "../styles/projects.css"
 
-function ProjectManagementPanel({ onProjectsChanged }) {
+function ProjectManagementPanel() {
     const [projects, setProjects] = useState([])
     const [includeArchived, setIncludeArchived] = useState(false)
     const [isLoading, setIsLoading] = useState(true)
@@ -83,7 +83,6 @@ function ProjectManagementPanel({ onProjectsChanged }) {
             setSuccess(editingId ? "Project updated." : "Project created.")
             closeForm()
             setViewedProject(null)
-            onProjectsChanged()
         } catch (err) {
             setError(err.message)
             setFieldErrors(err.fieldErrors || {})
@@ -104,7 +103,6 @@ function ProjectManagementPanel({ onProjectsChanged }) {
             closeForm()
             setViewedProject(null)
             setSuccess("Project archived. Its history is kept.")
-            onProjectsChanged()
         } catch (err) {
             setError(err.message)
         } finally {

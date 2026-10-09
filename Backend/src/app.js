@@ -3,6 +3,7 @@ import cors from "cors"
 import { signupRouter } from "./routes/signup.js"
 import { loginRouter } from "./routes/login.js"
 import { projectsRouter } from "./routes/projects.js"
+import { attendanceRouter } from "./routes/attendance.js"
 
 export const app = express()
 
@@ -12,6 +13,7 @@ app.use(express.json())
 app.use("/signup", signupRouter)
 app.use("/login", loginRouter)
 app.use("/projects", projectsRouter)
+app.use("/attendance", attendanceRouter)
 
 app.use((err, req, res, next) => {
     if (err.type === "entity.parse.failed") {

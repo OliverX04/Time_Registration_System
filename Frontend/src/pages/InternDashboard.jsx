@@ -4,6 +4,7 @@ import {
     logoutUser
 } from "../services/authService.js"
 import TaskDefinitionPanel from "../components/TaskDefinitionPanel.jsx"
+import AttendancePanel from "../components/AttendancePanel.jsx"
 
 function InternDashboard() {
     const navigate = useNavigate()
@@ -25,6 +26,7 @@ function InternDashboard() {
                     Welcome to your Intern Dashboard.
                 </p>
 
+                <AttendancePanel />
                 <TaskDefinitionPanel userRole="INTERN" />
 
                 <button

@@ -7,6 +7,11 @@ export const attendanceRouter = express.Router()
 attendanceRouter.use(requireAuth)
 attendanceRouter.use(requireIntern)
 
+attendanceRouter.get("/history", (req, res) => {
+    const sessions = findSessionsForIntern(req.user.id)
+    res.send({ sessions })
+})
+
 attendanceRouter.get("/status", (req, res) => {
     const internship = findActiveInternship(req.user.id)
 
@@ -124,4 +129,18 @@ function findSession(sessionId) {
         FROM attendance_session
         WHERE id = ?
     `).get(sessionId)
+}
+
+function findSessionsForIntern(userId) {
+    return db.prepare(`
+        SELECT
+            attendance_session.id,
+            attendance_session.internship_id AS internshipId,
+            attendance_session.checked_in_at AS checkedInAt,
+            attendance_session.checked_out_at AS checkedOutAt
+        FROM attendance_session
+        JOIN internship ON internship.id = attendance_session.internship_id
+        WHERE internship.intern_id = ?
+        ORDER BY attendance_session.checked_in_at DESC, attendance_session.id DESC
+    `).all(userId)
 }

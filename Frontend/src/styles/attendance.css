@@ -30,6 +30,28 @@
     margin: 0;
 }
 
+.attendance-history {
+    overflow-x: auto;
+}
+
+.attendance-history table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.attendance-history th,
+.attendance-history td {
+    padding: 12px;
+    border-bottom: 1px solid #e5e7eb;
+    color: #374151;
+    text-align: left;
+}
+
+.attendance-history th {
+    color: #1f2937;
+    background-color: #f9fafb;
+}
+
 @media (max-width: 600px) {
     .attendance-panel {
         align-items: stretch;

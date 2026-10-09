@@ -53,7 +53,7 @@ function AttendancePanel() {
             {error && <p className="error-message" role="alert">{error}</p>}
             {success && <p className="success-message" role="status">{success}</p>}
 
-            {isLoading ? <p className="task-helper">Loading attendance...</p> : !error && (
+            {isLoading ? <p className="task-helper">Loading attendance...</p> : (
                 <div className="attendance-panel">
                     <div>
                         <p className="attendance-status">

@@ -5,6 +5,7 @@ import InternDashboard from "./pages/InternDashboard.jsx"
 import SupervisorDashboard from "./pages/SupervisorDashboard.jsx"
 import Projects from "./pages/Projects.jsx"
 import Tasks from "./pages/Tasks.jsx"
+import AttendanceHistory from "./pages/AttendanceHistory.jsx"
 import ProtectedRoute from "./components/ProtectedRoute.jsx"
 import "./styles/auth.css"
 
@@ -44,6 +45,15 @@ function App() {
                 element={
                     <ProtectedRoute requiredRole="INTERN">
                         <Tasks />
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/intern-dashboard/attendance-history"
+                element={
+                    <ProtectedRoute requiredRole="INTERN">
+                        <AttendanceHistory />
                     </ProtectedRoute>
                 }
             />

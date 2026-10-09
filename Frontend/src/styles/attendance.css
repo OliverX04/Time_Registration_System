@@ -31,25 +31,69 @@
 }
 
 .attendance-history {
-    overflow-x: auto;
+    margin-top: 28px;
 }
 
-.attendance-history table {
-    width: 100%;
-    border-collapse: collapse;
+.attendance-day + .attendance-day {
+    margin-top: 36px;
 }
 
-.attendance-history th,
-.attendance-history td {
-    padding: 12px;
+.attendance-day-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding-bottom: 10px;
     border-bottom: 1px solid #e5e7eb;
-    color: #374151;
-    text-align: left;
 }
 
-.attendance-history th {
+.attendance-date,
+.attendance-day-total {
+    margin: 0;
+}
+
+.attendance-date {
     color: #1f2937;
-    background-color: #f9fafb;
+    font-size: 18px;
+}
+
+.attendance-day-total {
+    color: #6b7280;
+    font-size: 13px;
+}
+
+.attendance-day-total strong {
+    color: #1f2937;
+    font-size: 15px;
+}
+
+.attendance-entry-headings,
+.attendance-entry {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(110px, 150px));
+    gap: 24px;
+}
+
+.attendance-entry-headings {
+    padding: 10px 0 4px;
+    color: #6b7280;
+    font-size: 12px;
+}
+
+.attendance-entry {
+    padding: 7px 0;
+}
+
+.attendance-entry + .attendance-entry {
+    border-top: 1px solid #f1f5f9;
+}
+
+.attendance-entry p {
+    margin: 0;
+}
+
+.attendance-entry strong {
+    color: #1f2937;
+    font-size: 14px;
 }
 
 @media (max-width: 600px) {
@@ -60,5 +104,15 @@
 
     .attendance-button {
         width: 100%;
+    }
+
+    .attendance-entry {
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+
+    .attendance-entry-headings {
+        grid-template-columns: 1fr 1fr;
+        gap: 4px 12px;
     }
 }

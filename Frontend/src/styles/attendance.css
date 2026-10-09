@@ -1,0 +1,42 @@
+.attendance-panel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 20px;
+    border: 1px solid #e5e7eb;
+    border-radius: 7px;
+    background-color: #f9fafb;
+}
+
+.attendance-status,
+.attendance-time {
+    margin: 0;
+}
+
+.attendance-status {
+    color: #1f2937;
+}
+
+.attendance-time {
+    margin-top: 6px;
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.attendance-button {
+    width: auto;
+    min-width: 130px;
+    margin: 0;
+}
+
+@media (max-width: 600px) {
+    .attendance-panel {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .attendance-button {
+        width: 100%;
+    }
+}

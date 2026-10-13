@@ -53,9 +53,11 @@ async function request(method, route, token = internToken) {
     return { status: response.status, body: await response.json() }
 }
 
-test("attendance routes require an enabled Intern with an active internship", async () => {
+test("attendance routes require an enabled Intern and status requires an active internship", async () => {
     assert.equal((await request("GET", "/attendance/status", null)).status, 401)
     assert.equal((await request("GET", "/attendance/status", supervisorToken)).status, 403)
+    assert.equal((await request("GET", "/attendance/history", null)).status, 401)
+    assert.equal((await request("GET", "/attendance/history", supervisorToken)).status, 403)
 
     const waitingToken = createToken({ id: "waiting", email: "waiting@example.com", role: "INTERN" })
     const waiting = await request("GET", "/attendance/status", waitingToken)
@@ -103,4 +105,44 @@ test("an Intern can check out and register another attendance period", async () 
     assert.equal(secondCheckIn.status, 201)
     assert.notEqual(secondCheckIn.body.session.id, checkout.body.session.id)
     assert.equal(db.prepare("SELECT COUNT(*) AS count FROM attendance_session").get().count, 2)
+})
+
+test("an Intern can read only their attendance history newest first", async () => {
+    const historyToken = addAccount("history-intern", "INTERN")
+    addAccount("other-intern", "INTERN")
+
+    db.prepare(`
+        INSERT INTO internship (id, intern_id, started_at, ended_at, outcome)
+        VALUES (?, ?, ?, ?, ?)
+    `).run("history-ended", "history-intern", "2026-07-01T08:00:00.000Z", "2026-08-31T16:00:00.000Z", "COMPLETED")
+    db.prepare("INSERT INTO internship (id, intern_id, started_at) VALUES (?, ?, ?)")
+        .run("history-active", "history-intern", "2026-09-01T08:00:00.000Z")
+    db.prepare("INSERT INTO internship (id, intern_id, started_at) VALUES (?, ?, ?)")
+        .run("other-active", "other-intern", "2026-09-01T08:00:00.000Z")
+
+    const insertSession = db.prepare(`
+        INSERT INTO attendance_session (id, internship_id, checked_in_at, checked_out_at)
+        VALUES (?, ?, ?, ?)
+    `)
+    insertSession.run("history-older", "history-ended", "2026-08-01T09:00:00.000Z", "2026-08-01T12:00:00.000Z")
+    insertSession.run("history-newer", "history-active", "2026-10-01T08:00:00.000Z", null)
+    insertSession.run("other-session", "other-active", "2026-10-02T08:00:00.000Z", "2026-10-02T09:00:00.000Z")
+
+    const history = await request("GET", "/attendance/history", historyToken)
+
+    assert.equal(history.status, 200)
+    assert.deepEqual(history.body.sessions, [
+        {
+            id: "history-newer",
+            internshipId: "history-active",
+            checkedInAt: "2026-10-01T08:00:00.000Z",
+            checkedOutAt: null
+        },
+        {
+            id: "history-older",
+            internshipId: "history-ended",
+            checkedInAt: "2026-08-01T09:00:00.000Z",
+            checkedOutAt: "2026-08-01T12:00:00.000Z"
+        }
+    ])
 })

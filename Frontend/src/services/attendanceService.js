@@ -6,6 +6,10 @@ export async function getAttendanceStatus() {
     return attendanceRequest("/attendance/status")
 }
 
+export async function getAttendanceHistory() {
+    return attendanceRequest("/attendance/history")
+}
+
 export async function checkIn() {
     return attendanceRequest("/attendance/check-in", { method: "POST" })
 }

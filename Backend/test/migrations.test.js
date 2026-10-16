@@ -5,7 +5,16 @@ import Database from "better-sqlite3"
 import { runMigrations } from "../src/database/migrations.js"
 
 const schema = fs.readFileSync(new URL("../src/database/schema.sql", import.meta.url), "utf8")
-const legacySchema = schema.replace(/^    archived_at TEXT,\r?\n/m, "").replace(/CREATE TABLE IF NOT EXISTS task \([\s\S]*?\);/, `
+const legacySchema = schema
+    .replace(/^    archived_at TEXT,\r?\n/m, "")
+    .replace(/^    assigned_by_user_id TEXT,\r?\n/m, "")
+    .replace(/^    intern_note TEXT NOT NULL DEFAULT '',\r?\n/m, "")
+    .replace(
+        /    FOREIGN KEY \(task_id\) REFERENCES task\(id\),\r?\n    FOREIGN KEY \(assigned_by_user_id\) REFERENCES user_account\(id\)/,
+        "    FOREIGN KEY (task_id) REFERENCES task(id)"
+    )
+    .replace(/CREATE INDEX IF NOT EXISTS idx_task_assignment_assigned_by_user_id ON task_assignment\(assigned_by_user_id\);\r?\n?/, "")
+    .replace(/CREATE TABLE IF NOT EXISTS task \([\s\S]*?\);/, `
     CREATE TABLE IF NOT EXISTS task (
         id TEXT PRIMARY KEY,
         project_id TEXT NOT NULL REFERENCES project(id),
@@ -60,6 +69,8 @@ test("migration normalizes legacy email while preserving identities, history and
         expected.user_account[1].email = "boss@example.com"
         expected.task[0].created_by_user_id = null
         expected.project[0].archived_at = null
+        expected.task_assignment[0].intern_note = ""
+        expected.task_assignment[0].assigned_by_user_id = null
 
         runMigrations(db)
         assert.deepEqual(records(db), expected)

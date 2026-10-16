@@ -1,6 +1,5 @@
 import { getToken } from "./authService.js"
-
-const API_URL = "http://localhost:3000"
+import { API_URL } from "./apiConfig.js"
 
 export async function getAttendanceStatus() {
     return attendanceRequest("/attendance/status")

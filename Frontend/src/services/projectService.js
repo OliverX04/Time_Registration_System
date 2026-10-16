@@ -1,6 +1,5 @@
 import { getToken } from "./authService.js"
-
-const API_URL = "http://localhost:3000"
+import { API_URL } from "./apiConfig.js"
 
 export async function getProjects(includeArchived = false) {
     const data = await apiRequest(includeArchived ? "/projects?includeArchived=true" : "/projects")
@@ -42,6 +41,15 @@ export async function createProjectTask(projectId, title, description) {
             title,
             description
         })
+    })
+
+    return data.task
+}
+
+export async function updateProjectTask(projectId, taskId, title, description) {
+    const data = await apiRequest(`/projects/${projectId}/tasks/${taskId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ title, description })
     })
 
     return data.task

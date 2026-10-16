@@ -43,14 +43,26 @@ projectsRouter.get("/", (req, res) => {
         return res.status(403).send({ error: "Only Supervisors can list archived projects." })
     }
 
-    const projects = db
-        .prepare(`
+    const projects = req.user.role === "SUPERVISOR"
+        ? db.prepare(`
             SELECT ${projectFields}
             FROM project
             ${includeArchived ? "" : "WHERE project.archived_at IS NULL"}
-            ORDER BY name
-        `)
-        .all()
+            ORDER BY project.name
+        `).all()
+        : db.prepare(`
+            SELECT ${projectFields}
+            FROM project
+            JOIN project_assignment
+                ON project_assignment.project_id = project.id
+                AND project_assignment.ended_at IS NULL
+            JOIN internship
+                ON internship.id = project_assignment.internship_id
+                AND internship.ended_at IS NULL
+            WHERE project.archived_at IS NULL
+                AND internship.intern_id = ?
+            ORDER BY project.name
+        `).all(req.user.id)
 
     res.send({ projects })
 })
@@ -133,6 +145,10 @@ projectsRouter.get("/:projectId/tasks", (req, res) => {
         })
     }
 
+    if (req.user.role === "INTERN" && !canInternAccessProject(req.user.id, project.id)) {
+        return res.status(404).send({ error: "Project not found" })
+    }
+
     const tasks = db
         .prepare(`
             SELECT
@@ -156,17 +172,7 @@ projectsRouter.get("/:projectId/tasks", (req, res) => {
 })
 
 projectsRouter.post("/:projectId/tasks", (req, res) => {
-    const body = req.body && typeof req.body === "object" && !Array.isArray(req.body) ? req.body : {}
-    const { title, description = "" } = body
-    const fieldErrors = {}
-
-    if (typeof title !== "string" || !title.trim()) {
-        fieldErrors.title = "Task title is required and must be text."
-    }
-
-    if (typeof description !== "string") {
-        fieldErrors.description = "Task description must be text."
-    }
+    const { values, fieldErrors } = validateTask(req.body)
 
     if (Object.keys(fieldErrors).length) {
         return res.status(400).send({ error: "Please correct the task fields.", fieldErrors })
@@ -184,6 +190,10 @@ projectsRouter.post("/:projectId/tasks", (req, res) => {
         return res.status(409).send({ error: "New tasks cannot be added to an archived project." })
     }
 
+    if (req.user.role === "INTERN" && !canInternAccessProject(req.user.id, project.id)) {
+        return res.status(404).send({ error: "Project not found" })
+    }
+
     const insertTask = db.prepare(`
         INSERT INTO task (
             project_id,
@@ -197,8 +207,8 @@ projectsRouter.post("/:projectId/tasks", (req, res) => {
     const result = insertTask.run(
         project.id,
         req.user.id,
-        title.trim(),
-        description.trim()
+        values.title,
+        values.description
     )
 
     const task = db
@@ -217,10 +227,112 @@ projectsRouter.post("/:projectId/tasks", (req, res) => {
     res.status(201).send({ task })
 })
 
+projectsRouter.patch("/:projectId/tasks/:taskId", (req, res) => {
+    const project = findProject(req.params.projectId)
+
+    if (!project) {
+        return res.status(404).send({ error: "Project not found" })
+    }
+
+    if (project.archivedAt) {
+        return res.status(409).send({ error: "Tasks in archived projects cannot be edited." })
+    }
+
+    if (req.user.role === "INTERN" && !canInternAccessProject(req.user.id, project.id)) {
+        return res.status(404).send({ error: "Project not found" })
+    }
+
+    const task = findTask(project.id, req.params.taskId)
+
+    if (!task) {
+        return res.status(404).send({ error: "Task not found" })
+    }
+
+    if (req.user.role === "INTERN" && task.createdByRole !== "INTERN") {
+        return res.status(403).send({ error: "Interns can edit only Intern-created tasks." })
+    }
+
+    const { values, fieldErrors } = validateTask(req.body, true)
+
+    if (Object.keys(fieldErrors).length) {
+        return res.status(400).send({ error: "Please correct the task fields.", fieldErrors })
+    }
+
+    db.prepare("UPDATE task SET title = ?, description = ? WHERE id = ?").run(
+        values.title ?? task.title,
+        values.description ?? task.description,
+        task.id
+    )
+
+    res.send({ task: findTask(project.id, task.id) })
+})
+
 function findProject(projectId) {
     return db
         .prepare(`SELECT ${projectFields} FROM project WHERE project.id = ?`)
         .get(projectId)
+}
+
+function findTask(projectId, taskId) {
+    return db.prepare(`
+        SELECT
+            task.id,
+            task.project_id AS projectId,
+            task.title,
+            task.description,
+            task.created_by_user_id AS createdByUserId,
+            user_account.first_name AS createdByFirstName,
+            user_account.last_name AS createdByLastName,
+            user_account.role AS createdByRole
+        FROM task
+        LEFT JOIN user_account ON user_account.id = task.created_by_user_id
+        WHERE task.project_id = ? AND task.id = ?
+    `).get(projectId, taskId)
+}
+
+function canInternAccessProject(userId, projectId) {
+    return Boolean(db.prepare(`
+        SELECT 1
+        FROM project_assignment
+        JOIN internship ON internship.id = project_assignment.internship_id
+        WHERE internship.intern_id = ?
+            AND internship.ended_at IS NULL
+            AND project_assignment.project_id = ?
+            AND project_assignment.ended_at IS NULL
+    `).get(userId, projectId))
+}
+
+function validateTask(body, partial = false) {
+    const fieldErrors = {}
+    const values = {}
+
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+        return { values, fieldErrors: { body: "Request body must be an object." } }
+    }
+
+    if (!partial || Object.hasOwn(body, "title")) {
+        if (typeof body.title !== "string" || !body.title.trim()) {
+            fieldErrors.title = "Task title is required and must be text."
+        } else {
+            values.title = body.title.trim()
+        }
+    }
+
+    if (!partial || Object.hasOwn(body, "description")) {
+        const description = Object.hasOwn(body, "description") ? body.description : ""
+
+        if (typeof description !== "string") {
+            fieldErrors.description = "Task description must be text."
+        } else {
+            values.description = description.trim()
+        }
+    }
+
+    if (partial && !Object.hasOwn(values, "title") && !Object.hasOwn(values, "description") && !Object.keys(fieldErrors).length) {
+        fieldErrors.body = "Provide a task title or description."
+    }
+
+    return { values, fieldErrors }
 }
 
 function requireSupervisor(req, res, next) {

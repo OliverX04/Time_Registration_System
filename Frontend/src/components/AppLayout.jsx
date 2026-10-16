@@ -27,9 +27,12 @@ function AppLayout({ children }) {
                     </NavLink>
 
                     {!isSupervisor && (
-                        <NavLink className="sidebar-link" to={`${homePath}/attendance-history`}>
-                            Attendance History
-                        </NavLink>
+                        <>
+                            <NavLink className="sidebar-link" to={`${homePath}/attendance-history`}>
+                                Attendance History
+                            </NavLink>
+
+                        </>
                     )}
 
                     {isSupervisor && (

@@ -190,6 +190,10 @@ test("unknown projects return 404 for edit, archive and task access", async () =
 
 test("task creation keeps Piotr's response shape and rejects malformed values", async () => {
     const project = await createProject("Task project")
+    db.prepare("INSERT INTO internship (id, intern_id, started_at) VALUES (?, ?, ?)")
+        .run("task-author-internship", "intern", "2026-09-01T09:00:00Z")
+    db.prepare("INSERT INTO project_assignment (id, internship_id, project_id, assigned_at) VALUES (?, ?, ?, ?)")
+        .run("task-author-project-assignment", "task-author-internship", project.id, "2026-09-01T09:00:00Z")
     const result = await request("POST", `/projects/${project.id}/tasks`, { title: "  Shared task  ", description: " Details ", createdByUserId: "supervisor" }, internToken)
     assert.equal(result.status, 201)
     assert.deepEqual(Object.keys(result.body.task).sort(), ["createdByUserId", "description", "id", "projectId", "title"])
@@ -202,6 +206,56 @@ test("task creation keeps Piotr's response shape and rejects malformed values", 
         assert.equal(invalid.status, 400)
         assert.equal(typeof invalid.body.fieldErrors, "object")
     }
+
+    db.prepare("UPDATE project_assignment SET ended_at = ? WHERE id = ?")
+        .run("2026-09-02T09:00:00Z", "task-author-project-assignment")
+    db.prepare("UPDATE internship SET ended_at = ?, outcome = 'COMPLETED' WHERE id = ?")
+        .run("2026-09-02T09:00:00Z", "task-author-internship")
+})
+
+test("an Intern sees only their active project and cannot access tasks from another project", async () => {
+    const ownProject = await createProject("Intern project")
+    const otherProject = await createProject("Other project")
+    db.prepare("INSERT INTO internship (id, intern_id, started_at) VALUES (?, ?, ?)")
+        .run("scoped-internship", "intern", "2026-09-01T09:00:00Z")
+    db.prepare("INSERT INTO project_assignment (id, internship_id, project_id, assigned_at) VALUES (?, ?, ?, ?)")
+        .run("scoped-project-assignment", "scoped-internship", ownProject.id, "2026-09-01T09:00:00Z")
+
+    const listed = await request("GET", "/projects", undefined, internToken)
+    assert.equal(listed.status, 200)
+    assert.deepEqual(listed.body.projects.map(({ id }) => id), [ownProject.id])
+    assert.equal((await request("GET", `/projects/${ownProject.id}/tasks`, undefined, internToken)).status, 200)
+    assert.equal((await request("GET", `/projects/${otherProject.id}/tasks`, undefined, internToken)).status, 404)
+    assert.equal((await request("POST", `/projects/${otherProject.id}/tasks`, { title: "No access" }, internToken)).status, 404)
+})
+
+test("Supervisors edit every task while Interns edit only Intern-created tasks", async () => {
+    const project = await createProject("Editable tasks")
+    db.prepare("INSERT INTO internship (id, intern_id, started_at) VALUES (?, ?, ?)")
+        .run("editor-internship", "intern", "2026-09-01T09:00:00Z")
+    db.prepare("INSERT INTO project_assignment (id, internship_id, project_id, assigned_at) VALUES (?, ?, ?, ?)")
+        .run("editor-project-assignment", "editor-internship", project.id, "2026-09-01T09:00:00Z")
+
+    const supervisorTask = (await request("POST", `/projects/${project.id}/tasks`, { title: "Supervisor task" })).body.task
+    const internTask = (await request("POST", `/projects/${project.id}/tasks`, { title: "Intern task" }, internToken)).body.task
+
+    const internEdit = await request("PATCH", `/projects/${project.id}/tasks/${internTask.id}`, {
+        title: "Edited by Intern",
+        description: "Intern description"
+    }, internToken)
+    assert.equal(internEdit.status, 200)
+    assert.equal(internEdit.body.task.title, "Edited by Intern")
+
+    const denied = await request("PATCH", `/projects/${project.id}/tasks/${supervisorTask.id}`, {
+        description: "Overwrite"
+    }, internToken)
+    assert.equal(denied.status, 403)
+
+    const supervisorEdit = await request("PATCH", `/projects/${project.id}/tasks/${internTask.id}`, {
+        description: "Reviewed by Supervisor"
+    })
+    assert.equal(supervisorEdit.status, 200)
+    assert.equal(supervisorEdit.body.task.description, "Reviewed by Supervisor")
 })
 
 test("active project assignments block archiving without changing assignments", async () => {
@@ -252,6 +306,6 @@ test("archive preserves historical records, hides default lists and prevents edi
     assert.equal((await request("PATCH", `/projects/${project.id}`, { name: "Changed" })).status, 409)
     assert.equal((await request("POST", `/projects/${project.id}/tasks`, { title: "New task" })).status, 409)
     assert.equal((await request("GET", `/projects/${project.id}/tasks`)).body.tasks[0].id, "history-task")
-    assert.equal((await request("GET", `/projects/${project.id}/tasks`, undefined, internToken)).status, 200)
+    assert.equal((await request("GET", `/projects/${project.id}/tasks`, undefined, internToken)).status, 404)
     assert.deepEqual(db.pragma("foreign_key_check"), [])
 })

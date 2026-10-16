@@ -11,6 +11,7 @@ let baseUrl
 let createToken
 let internToken
 let supervisorToken
+let managedInternToken
 
 before(async () => {
     process.env.DATABASE_PATH = path.join(tempDir, "database.sqlite")
@@ -20,21 +21,31 @@ before(async () => {
     internToken = addAccount("intern", "INTERN")
     supervisorToken = addAccount("supervisor", "SUPERVISOR")
     addAccount("other-intern", "INTERN")
+    managedInternToken = addAccount("managed-intern", "INTERN")
+    addAccount("unassigned-intern", "INTERN")
 
     db.prepare("INSERT INTO internship (id, intern_id, started_at) VALUES (?, ?, ?)")
         .run("internship", "intern", "2026-10-01T08:00:00.000Z")
     db.prepare("INSERT INTO internship (id, intern_id, started_at) VALUES (?, ?, ?)")
         .run("other-internship", "other-intern", "2026-10-01T08:00:00.000Z")
+    db.prepare("INSERT INTO internship (id, intern_id, started_at) VALUES (?, ?, ?)")
+        .run("managed-internship", "managed-intern", "2026-10-01T08:00:00.000Z")
+    db.prepare("INSERT INTO internship (id, intern_id, started_at) VALUES (?, ?, ?)")
+        .run("unassigned-internship", "unassigned-intern", "2026-10-01T08:00:00.000Z")
 
     addProject("project", "Active project", null)
     addProject("archived-project", "Archived project", "2026-10-15T08:00:00.000Z")
+    addProject("second-project", "Second project", null)
     addProjectAssignment("project-assignment", "internship", "project", null)
     addProjectAssignment("other-project-assignment", "other-internship", "project", null)
+    addProjectAssignment("managed-project-assignment", "managed-internship", "project", null)
     addProjectAssignment("archived-project-assignment", "internship", "archived-project", null)
 
     addTask("task-a", "project", "Task A")
     addTask("task-b", "project", "Task B")
+    addTask("task-self", "project", "Self-service task")
     addTask("archived-task", "archived-project", "Archived task")
+    addTask("task-c", "second-project", "Task C")
     addTaskAssignment("assignment-a", "internship", "task-a", null)
     addTaskAssignment("assignment-b", "internship", "task-b", null)
     addTaskAssignment("ended-assignment", "internship", "task-b", "2026-10-15T08:00:00.000Z")
@@ -129,6 +140,38 @@ test("an Intern sees only their active task assignments", async () => {
     assert.deepEqual(result.body.assignments.map((assignment) => assignment.id), ["assignment-a", "assignment-b"])
     assert.equal(result.body.assignments[0].projectName, "Active project")
     assert.equal(result.body.assignments[0].taskTitle, "Task A")
+    assert.equal(result.body.assignments[0].internNote, "")
+    assert.equal(result.body.assignments[0].canLeave, false)
+})
+
+test("an Intern can join and leave a task only in their active project", async () => {
+    const joined = await request("POST", "/task-time/assignments", { taskId: "task-self" })
+    assert.equal(joined.status, 201)
+    assert.equal(joined.body.assignment.taskId, "task-self")
+    assert.equal(joined.body.assignment.canLeave, true)
+
+    const duplicate = await request("POST", "/task-time/assignments", { taskId: "task-self" })
+    assert.equal(duplicate.status, 200)
+    assert.equal(duplicate.body.assignment.id, joined.body.assignment.id)
+
+    const outsideProject = await request("POST", "/task-time/assignments", { taskId: "task-c" })
+    assert.equal(outsideProject.status, 404)
+
+    const noted = await request("PATCH", `/task-time/assignments/${joined.body.assignment.id}/note`, {
+        note: "  Implementation details  "
+    })
+    assert.equal(noted.status, 200)
+    assert.equal(noted.body.assignment.internNote, "Implementation details")
+
+    const cannotEditAnotherIntern = await request("PATCH", "/task-time/assignments/other-assignment/note", {
+        note: "No"
+    })
+    assert.equal(cannotEditAnotherIntern.status, 404)
+
+    const ended = await request("POST", `/task-time/assignments/${joined.body.assignment.id}/end`, {})
+    assert.equal(ended.status, 200)
+    assert.equal(typeof ended.body.assignment.endedAt, "string")
+    assert.equal((await request("POST", `/task-time/assignments/${joined.body.assignment.id}/end`, {})).status, 404)
 })
 
 test("an Intern can register manual task time", async () => {
@@ -201,4 +244,91 @@ test("task time cannot overlap the Intern's entry on another task", async () => 
         endedAt: hoursFromNow(-1)
     })
     assert.equal(adjacent.status, 201)
+})
+
+test("only Supervisors can manage task assignments", async () => {
+    const denied = await request("GET", "/task-time/management/assignments", undefined, internToken)
+    assert.equal(denied.status, 403)
+})
+
+test("a Supervisor assigns multiple Interns to tasks without changing project assignments", async () => {
+    const missingProject = await request("POST", "/task-time/management/assignments", {
+        internId: "unassigned-intern",
+        taskId: "task-a"
+    }, supervisorToken)
+    assert.equal(missingProject.status, 409)
+    assert.match(missingProject.body.error, /project/)
+
+    const created = await request("POST", "/task-time/management/assignments", {
+        internId: "managed-intern",
+        taskId: "task-a"
+    }, supervisorToken)
+
+    assert.equal(created.status, 201)
+    assert.equal(created.body.assignment.internId, "managed-intern")
+    assert.equal(created.body.assignment.projectId, "project")
+    assert.equal(created.body.assignment.taskId, "task-a")
+    assert.equal(created.body.assignment.assignedByUserId, "supervisor")
+
+    const selfRemovalDenied = await request(
+        "POST",
+        `/task-time/assignments/${created.body.assignment.id}/end`,
+        {},
+        managedInternToken
+    )
+    assert.equal(selfRemovalDenied.status, 403)
+    assert.equal(db.prepare("SELECT ended_at FROM task_assignment WHERE id = ?").get(created.body.assignment.id).ended_at, null)
+    assert.equal(db.prepare(`
+        SELECT COUNT(*) AS count
+        FROM task_assignment
+        WHERE task_id = 'task-a' AND ended_at IS NULL
+    `).get().count, 3)
+
+    const duplicate = await request("POST", "/task-time/management/assignments", {
+        internId: "managed-intern",
+        taskId: "task-a"
+    }, supervisorToken)
+    assert.equal(duplicate.status, 200)
+    assert.equal(duplicate.body.assignment.id, created.body.assignment.id)
+
+    const secondTask = await request("POST", "/task-time/management/assignments", {
+        internId: "managed-intern",
+        taskId: "task-b"
+    }, supervisorToken)
+    assert.equal(secondTask.status, 201)
+    assert.equal(db.prepare(`
+        SELECT COUNT(*) AS count
+        FROM project_assignment
+        WHERE internship_id = 'managed-internship' AND ended_at IS NULL
+    `).get().count, 1)
+
+    const differentProject = await request("POST", "/task-time/management/assignments", {
+        internId: "managed-intern",
+        taskId: "task-c"
+    }, supervisorToken)
+    assert.equal(differentProject.status, 409)
+    assert.equal(db.prepare(`
+        SELECT COUNT(*) AS count
+        FROM task_assignment
+        WHERE internship_id = 'managed-internship' AND ended_at IS NULL
+    `).get().count, 2)
+    assert.equal(db.prepare(`
+        SELECT project_id AS projectId
+        FROM project_assignment
+        WHERE internship_id = 'managed-internship' AND ended_at IS NULL
+    `).get().projectId, "project")
+
+    const listed = await request("GET", "/task-time/management/assignments", undefined, supervisorToken)
+    assert.equal(listed.status, 200)
+    assert.equal(listed.body.assignments.some(({ id }) => id === secondTask.body.assignment.id), true)
+
+    const ended = await request(
+        "POST",
+        `/task-time/management/assignments/${secondTask.body.assignment.id}/end`,
+        {},
+        supervisorToken
+    )
+    assert.equal(ended.status, 200)
+    assert.equal(typeof ended.body.assignment.endedAt, "string")
+    assert.equal(db.prepare("SELECT ended_at FROM task_assignment WHERE id = ?").get(secondTask.body.assignment.id).ended_at, ended.body.assignment.endedAt)
 })

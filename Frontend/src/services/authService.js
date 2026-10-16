@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:3000"
+import { API_URL } from "./apiConfig.js"
 
 export async function registerUser(firstName, lastName, email, password) {
     const response = await fetch(`${API_URL}/signup`, {
@@ -78,7 +78,7 @@ export function logoutUser() {
 
 export async function checkAccountStatus() {
     const response = await fetch(
-        "http://localhost:3000/internships/me/status",
+        `${API_URL}/internships/me/status`,
         {
             headers: {
                 Authorization: `Bearer ${getToken()}`

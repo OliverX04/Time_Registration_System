@@ -62,10 +62,13 @@ CREATE TABLE IF NOT EXISTS task_assignment (
     id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
     internship_id TEXT NOT NULL,
     task_id TEXT NOT NULL,
+    assigned_by_user_id TEXT,
     assigned_at TEXT NOT NULL,
     ended_at TEXT,
+    intern_note TEXT NOT NULL DEFAULT '',
     FOREIGN KEY (internship_id) REFERENCES internship(id),
-    FOREIGN KEY (task_id) REFERENCES task(id)
+    FOREIGN KEY (task_id) REFERENCES task(id),
+    FOREIGN KEY (assigned_by_user_id) REFERENCES user_account(id)
 );
 
 CREATE TABLE IF NOT EXISTS attendance_session (

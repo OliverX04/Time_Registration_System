@@ -59,6 +59,11 @@ function App() {
             />
 
             <Route
+                path="/intern-dashboard/task-time"
+                element={<Navigate to="/intern-dashboard/tasks" replace />}
+            />
+
+            <Route
                 path="/supervisor-dashboard/projects"
                 element={
                     <ProtectedRoute requiredRole="SUPERVISOR">
@@ -74,6 +79,11 @@ function App() {
                         <Tasks />
                     </ProtectedRoute>
                 }
+            />
+
+            <Route
+                path="/supervisor-dashboard/task-assignments"
+                element={<Navigate to="/supervisor-dashboard/tasks" replace />}
             />
 
             <Route

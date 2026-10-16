@@ -134,6 +134,92 @@ taskTimeRouter.post("/entries", requireIntern, (req, res) => {
     res.status(result.status).send(result.body)
 })
 
+taskTimeRouter.get("/tasks/:taskId/history", (req, res) => {
+    if (typeof req.user?.id !== "string") {
+        return res.status(401).send({ error: "Unauthorized" })
+    }
+
+    const account = db.prepare("SELECT id, role, is_enabled FROM user_account WHERE id = ?").get(req.user.id)
+
+    if (!account) {
+        return res.status(401).send({ error: "Unauthorized" })
+    }
+
+    if (!account.is_enabled) {
+        return res.status(403).send({ error: "Account is disabled." })
+    }
+
+    const task = db.prepare(`
+        SELECT task.id, task.title, task.project_id AS projectId, project.name AS projectName
+        FROM task
+        JOIN project ON project.id = task.project_id
+        WHERE task.id = ?
+    `).get(req.params.taskId)
+
+    if (!task) {
+        return res.status(404).send({ error: "Task not found." })
+    }
+
+    if (account.role === "INTERN" && !canInternViewTaskHistory(account.id, task)) {
+        return res.status(404).send({ error: "Task not found." })
+    }
+
+    if (account.role !== "INTERN" && account.role !== "SUPERVISOR") {
+        return res.status(403).send({ error: "Only Interns and Supervisors can view task history." })
+    }
+
+    const entries = db.prepare(`
+        SELECT
+            task_time_entry.id,
+            internship.intern_id AS internId,
+            user_account.first_name AS internFirstName,
+            user_account.last_name AS internLastName,
+            task_time_entry.started_at AS startedAt,
+            task_time_entry.ended_at AS endedAt
+        FROM task_time_entry
+        JOIN task_assignment ON task_assignment.id = task_time_entry.task_assignment_id
+        JOIN internship ON internship.id = task_assignment.internship_id
+        JOIN user_account ON user_account.id = internship.intern_id
+        WHERE task_assignment.task_id = ?
+        ORDER BY task_time_entry.started_at DESC, task_time_entry.id
+    `).all(task.id).map((entry) => ({
+        ...entry,
+        durationMs: entry.endedAt
+            ? Math.max(0, Date.parse(entry.endedAt) - Date.parse(entry.startedAt))
+            : null
+    }))
+
+    const contributorTotals = new Map()
+    let totalDurationMs = 0
+
+    for (const entry of entries) {
+        if (!contributorTotals.has(entry.internId)) {
+            contributorTotals.set(entry.internId, {
+                internId: entry.internId,
+                internFirstName: entry.internFirstName,
+                internLastName: entry.internLastName,
+                durationMs: 0
+            })
+        }
+
+        if (entry.durationMs !== null) {
+            contributorTotals.get(entry.internId).durationMs += entry.durationMs
+            totalDurationMs += entry.durationMs
+        }
+    }
+
+    res.send({
+        task: { id: task.id, title: task.title, projectId: task.projectId, projectName: task.projectName },
+        totalDurationMs,
+        contributors: Array.from(contributorTotals.values()).sort((first, second) =>
+            first.internFirstName.localeCompare(second.internFirstName)
+                || first.internLastName.localeCompare(second.internLastName)
+                || first.internId.localeCompare(second.internId)
+        ),
+        entries
+    })
+})
+
 taskTimeRouter.get("/management/assignments", requireSupervisor, (req, res) => {
     res.send({ assignments: findManagedAssignments() })
 })
@@ -408,6 +494,23 @@ function findEntry(entryId) {
         JOIN project ON project.id = task.project_id
         WHERE task_time_entry.id = ?
     `).get(entryId)
+}
+
+function canInternViewTaskHistory(userId, task) {
+    return Boolean(db.prepare(`
+        SELECT 1
+        FROM internship
+        JOIN project_assignment ON project_assignment.internship_id = internship.id
+        WHERE internship.intern_id = ?
+            AND internship.ended_at IS NULL
+            AND project_assignment.project_id = ?
+            AND project_assignment.ended_at IS NULL
+            AND EXISTS (
+                SELECT 1 FROM project
+                WHERE project.id = project_assignment.project_id
+                    AND project.archived_at IS NULL
+            )
+    `).get(userId, task.projectId))
 }
 
 function findManagedAssignments() {

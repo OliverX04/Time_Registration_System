@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { getInterns } from "../services/internshipService.js"
 import {
     createProjectTask,
@@ -11,6 +11,7 @@ import {
     createTaskTimeEntry,
     endTaskAssignment,
     getManagedTaskAssignments,
+    getTaskTimeHistory,
     getTaskTimeAssignments,
     joinTask,
     leaveTask,
@@ -26,6 +27,11 @@ function TaskDefinitionPanel({ userRole }) {
     const [interns, setInterns] = useState([])
     const [assignments, setAssignments] = useState([])
     const [expandedTaskId, setExpandedTaskId] = useState("")
+    const [historyTaskId, setHistoryTaskId] = useState("")
+    const [taskHistory, setTaskHistory] = useState(null)
+    const [isHistoryLoading, setIsHistoryLoading] = useState(false)
+    const [historyError, setHistoryError] = useState("")
+    const historyRequestId = useRef(0)
     const [editingTaskId, setEditingTaskId] = useState("")
     const [showCreateForm, setShowCreateForm] = useState(false)
     const [createTitle, setCreateTitle] = useState("")
@@ -81,8 +87,13 @@ function TaskDefinitionPanel({ userRole }) {
         let cancelled = false
 
         async function loadTasks() {
+            historyRequestId.current += 1
             setTasks([])
             setExpandedTaskId("")
+            setHistoryTaskId("")
+            setTaskHistory(null)
+            setIsHistoryLoading(false)
+            setHistoryError("")
             setEditingTaskId("")
             if (!selectedProjectId) return
 
@@ -97,6 +108,35 @@ function TaskDefinitionPanel({ userRole }) {
         loadTasks()
         return () => { cancelled = true }
     }, [selectedProjectId])
+
+    async function handleToggleTaskHistory(task) {
+        if (historyTaskId === task.id) {
+            historyRequestId.current += 1
+            setHistoryTaskId("")
+            setTaskHistory(null)
+            setHistoryError("")
+            setIsHistoryLoading(false)
+            return
+        }
+
+        const requestId = historyRequestId.current + 1
+        historyRequestId.current = requestId
+        setHistoryTaskId(task.id)
+        setExpandedTaskId("")
+        setEditingTaskId("")
+        setTaskHistory(null)
+        setHistoryError("")
+        setIsHistoryLoading(true)
+
+        try {
+            const result = await getTaskTimeHistory(task.id)
+            if (historyRequestId.current === requestId) setTaskHistory(result)
+        } catch (err) {
+            if (historyRequestId.current === requestId) setHistoryError(err.message)
+        } finally {
+            if (historyRequestId.current === requestId) setIsHistoryLoading(false)
+        }
+    }
 
     async function refreshAssignments() {
         const loadedAssignments = isSupervisor
@@ -140,6 +180,8 @@ function TaskDefinitionPanel({ userRole }) {
         clearMessages()
         setEditingTaskId(task.id)
         setExpandedTaskId("")
+        setHistoryTaskId("")
+        setTaskHistory(null)
         setEditTitle(task.title)
         setEditDescription(task.description)
     }
@@ -375,11 +417,21 @@ function TaskDefinitionPanel({ userRole }) {
                                                         <button className="project-action" type="button" onClick={() => startEditing(task)}>Edit</button>
                                                     )}
                                                     <button
+                                                        className="project-action"
+                                                        type="button"
+                                                        aria-expanded={historyTaskId === task.id}
+                                                        onClick={() => handleToggleTaskHistory(task)}
+                                                    >
+                                                        {historyTaskId === task.id ? "Close history" : "History"}
+                                                    </button>
+                                                    <button
                                                         className="project-action project-action-primary"
                                                         type="button"
                                                         onClick={() => {
                                                             clearMessages()
                                                             setEditingTaskId("")
+                                                            setHistoryTaskId("")
+                                                            setTaskHistory(null)
                                                             setExpandedTaskId((current) => current === task.id ? "" : task.id)
                                                         }}
                                                     >
@@ -418,6 +470,14 @@ function TaskDefinitionPanel({ userRole }) {
                                                 )}
                                             </div>
                                         )}
+
+                                        {historyTaskId === task.id && editingTaskId !== task.id && (
+                                            <TaskHistoryPanel
+                                                history={taskHistory}
+                                                isLoading={isHistoryLoading}
+                                                error={historyError}
+                                            />
+                                        )}
                                     </li>
                                 )
                             })}
@@ -442,6 +502,98 @@ function TaskFields({ title, description, setTitle, setDescription, disabled, pr
             </div>
         </>
     )
+}
+
+function TaskHistoryPanel({ history, isLoading, error }) {
+    if (isLoading) return <div className="task-history-panel"><p className="task-helper">Loading task history...</p></div>
+    if (error) return <div className="task-history-panel"><p className="error-message" role="alert">{error}</p></div>
+    if (!history) return null
+
+    const dayGroups = groupTaskEntriesByDate(history.entries)
+
+    return (
+        <section className="task-history-panel" aria-label={`History for ${history.task.title}`}>
+            <div className="task-history-summary">
+                <article>
+                    <span>Total time</span>
+                    <strong>{formatTaskDuration(history.totalDurationMs)}</strong>
+                </article>
+                {history.contributors.map((contributor) => (
+                    <article key={contributor.internId}>
+                        <span>{contributor.internFirstName} {contributor.internLastName}</span>
+                        <strong>{formatTaskDuration(contributor.durationMs)}</strong>
+                    </article>
+                ))}
+            </div>
+
+            {history.entries.length === 0 ? (
+                <p className="task-empty">No time entries have been recorded for this task.</p>
+            ) : (
+                <div className="task-history-days">
+                    {dayGroups.map((group) => (
+                        <section className="task-history-day" key={group.dateKey}>
+                            <div className="task-history-day-heading">
+                                <h3>{formatTaskDate(group.entries[0].startedAt)}</h3>
+                                <p>Daily total: <strong>{formatTaskDuration(group.durationMs)}</strong></p>
+                            </div>
+                            <div className="task-history-entry-list">
+                                {group.entries.map((entry) => (
+                                    <article className="task-history-entry" key={entry.id}>
+                                        <strong>{entry.internFirstName} {entry.internLastName}</strong>
+                                        <span>{formatTaskTime(entry.startedAt)}–{entry.endedAt ? formatTaskTime(entry.endedAt) : "In progress"}</span>
+                                        <span>{entry.durationMs === null ? "—" : formatTaskDuration(entry.durationMs)}</span>
+                                    </article>
+                                ))}
+                            </div>
+                        </section>
+                    ))}
+                </div>
+            )}
+        </section>
+    )
+}
+
+function groupTaskEntriesByDate(entries) {
+    const groups = new Map()
+
+    entries.forEach((entry) => {
+        const date = new Date(entry.startedAt)
+        const dateKey = [
+            date.getFullYear(),
+            String(date.getMonth() + 1).padStart(2, "0"),
+            String(date.getDate()).padStart(2, "0")
+        ].join("-")
+
+        if (!groups.has(dateKey)) groups.set(dateKey, { dateKey, durationMs: 0, entries: [] })
+        const group = groups.get(dateKey)
+        group.entries.push(entry)
+        if (entry.durationMs !== null) group.durationMs += entry.durationMs
+    })
+
+    return Array.from(groups.values())
+}
+
+function formatTaskDate(timestamp) {
+    return new Date(timestamp).toLocaleDateString([], {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric"
+    })
+}
+
+function formatTaskTime(timestamp) {
+    return new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+}
+
+function formatTaskDuration(durationMs) {
+    if (!durationMs) return "0m"
+    const totalMinutes = Math.floor(durationMs / 60000)
+    const hours = Math.floor(totalMinutes / 60)
+    const minutes = totalMinutes % 60
+
+    if (!hours) return `${minutes}m`
+    return minutes ? `${hours}h ${minutes}m` : `${hours}h`
 }
 
 function SupervisorTaskManager({ task, interns, assignments, busyAction, onToggleAssignment }) {

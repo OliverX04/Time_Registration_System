@@ -12,6 +12,7 @@ let createToken
 let internToken
 let supervisorToken
 let managedInternToken
+let unassignedInternToken
 
 before(async () => {
     process.env.DATABASE_PATH = path.join(tempDir, "database.sqlite")
@@ -22,7 +23,7 @@ before(async () => {
     supervisorToken = addAccount("supervisor", "SUPERVISOR")
     addAccount("other-intern", "INTERN")
     managedInternToken = addAccount("managed-intern", "INTERN")
-    addAccount("unassigned-intern", "INTERN")
+    unassignedInternToken = addAccount("unassigned-intern", "INTERN")
 
     db.prepare("INSERT INTO internship (id, intern_id, started_at) VALUES (?, ?, ?)")
         .run("internship", "intern", "2026-10-01T08:00:00.000Z")
@@ -142,6 +143,37 @@ test("an Intern sees only their active task assignments", async () => {
     assert.equal(result.body.assignments[0].taskTitle, "Task A")
     assert.equal(result.body.assignments[0].internNote, "")
     assert.equal(result.body.assignments[0].canLeave, false)
+})
+
+test("task history returns task totals and entries to project Interns and Supervisors", async () => {
+    db.prepare(`
+        INSERT INTO task_time_entry (id, task_assignment_id, started_at, ended_at)
+        VALUES (?, ?, ?, ?)
+    `).run("history-entry-intern", "assignment-a", "2026-10-12T09:00:00.000Z", "2026-10-12T09:30:00.000Z")
+    db.prepare(`
+        INSERT INTO task_time_entry (id, task_assignment_id, started_at, ended_at)
+        VALUES (?, ?, ?, ?)
+    `).run("history-entry-other", "other-assignment", "2026-10-12T10:00:00.000Z", "2026-10-12T10:45:00.000Z")
+
+    const internHistory = await request("GET", "/task-time/tasks/task-a/history")
+    assert.equal(internHistory.status, 200)
+    assert.equal(internHistory.body.task.id, "task-a")
+    assert.equal(internHistory.body.totalDurationMs, 75 * 60 * 1000)
+    assert.equal(internHistory.body.entries.length, 2)
+    assert.deepEqual(
+        internHistory.body.contributors.map(({ internId, durationMs }) => ({ internId, durationMs })),
+        [
+            { internId: "intern", durationMs: 30 * 60 * 1000 },
+            { internId: "other-intern", durationMs: 45 * 60 * 1000 }
+        ]
+    )
+
+    const supervisorHistory = await request("GET", "/task-time/tasks/task-a/history", undefined, supervisorToken)
+    assert.equal(supervisorHistory.status, 200)
+    assert.equal(supervisorHistory.body.entries.length, 2)
+
+    const unassignedHistory = await request("GET", "/task-time/tasks/task-a/history", undefined, unassignedInternToken)
+    assert.equal(unassignedHistory.status, 404)
 })
 
 test("an Intern can join and leave a task only in their active project", async () => {

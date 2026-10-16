@@ -64,6 +64,82 @@
     grid-column: 1 / -1;
 }
 
+.task-history-panel {
+    grid-column: 1 / -1;
+    padding: 18px;
+    border: 1px solid #dbe3ee;
+    border-radius: 8px;
+    background: #f9fafb;
+}
+
+.task-history-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.task-history-summary article {
+    display: grid;
+    gap: 4px;
+    min-width: 140px;
+    padding: 12px 14px;
+    border: 1px solid #dbe3ee;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.task-history-summary span,
+.task-history-day-heading p {
+    color: #6b7280;
+    font-size: 13px;
+}
+
+.task-history-summary strong {
+    color: #1f2937;
+}
+
+.task-history-day + .task-history-day {
+    margin-top: 20px;
+}
+
+.task-history-day-heading {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px 16px;
+    margin-bottom: 8px;
+}
+
+.task-history-day-heading h3,
+.task-history-day-heading p {
+    margin: 0;
+}
+
+.task-history-day-heading h3 {
+    color: #1f2937;
+    font-size: 15px;
+}
+
+.task-history-entry-list {
+    border-top: 1px solid #e5e7eb;
+}
+
+.task-history-entry {
+    display: grid;
+    grid-template-columns: minmax(140px, 1fr) minmax(150px, 1fr) minmax(70px, auto);
+    gap: 12px;
+    padding: 10px 4px;
+    border-bottom: 1px solid #e5e7eb;
+    color: #4b5563;
+    font-size: 14px;
+}
+
+.task-history-entry strong {
+    color: #1f2937;
+}
+
 .task-workspace-row > .task-inline-form {
     margin: 0;
 }
@@ -177,6 +253,11 @@
         display: flex;
         flex-direction: column;
         align-items: stretch;
+    }
+
+    .task-history-entry {
+        grid-template-columns: 1fr;
+        gap: 4px;
     }
 
     .task-row-actions {

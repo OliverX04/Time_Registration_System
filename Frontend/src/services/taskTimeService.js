@@ -14,6 +14,10 @@ export async function createTaskTimeEntry(taskAssignmentId, startedAt, endedAt) 
     return data.entry
 }
 
+export async function getTaskTimeHistory(taskId) {
+    return taskTimeRequest(`/task-time/tasks/${encodeURIComponent(taskId)}/history`)
+}
+
 export async function joinTask(taskId) {
     const data = await taskTimeRequest("/task-time/assignments", {
         method: "POST",

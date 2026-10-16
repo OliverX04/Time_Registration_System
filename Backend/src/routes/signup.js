@@ -57,15 +57,16 @@ async function createUser({ firstName, lastName, email, password }) {
     const hashedPassword = await hashPassword(password)
 
     const insertUser = db.prepare(`
-        INSERT INTO user_account (
-            first_name,
-            last_name,
-            email,
-            password_hash,
-            role
-        )
-        VALUES (?, ?, ?, ?, ?)
-    `)
+    INSERT INTO user_account (
+        first_name,
+        last_name,
+        email,
+        password_hash,
+        role,
+        is_enabled
+    )
+    VALUES (?, ?, ?, ?, ?, 0)
+`)
 
     insertUser.run(
         firstName,

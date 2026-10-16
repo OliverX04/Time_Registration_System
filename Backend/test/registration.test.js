@@ -81,7 +81,7 @@ test("registration trims names, normalizes email and always creates an Intern wi
     assert.equal(account.last_name, "Intern")
     assert.equal(account.student_number, null)
     assert.equal(account.role, "INTERN")
-    assert.equal(account.is_enabled, 1)
+    assert.equal(account.is_enabled, 0)
     assert.notEqual(account.password_hash, password)
     assert.equal(await comparePassword(password, account.password_hash), true)
     assert.equal(db.prepare("SELECT COUNT(*) AS count FROM internship WHERE intern_id = ?").get(account.id).count, 0)
@@ -136,17 +136,32 @@ test("registration accepts nonempty passwords without strength rules and hashes 
         const email = `password-${index}@example.com`
         const signup = await request("/signup", registration({ email, password: value }))
         assert.equal(signup.response.status, 201)
-        const account = db.prepare("SELECT password_hash FROM user_account WHERE email = ?").get(email)
+
+        const account = db.prepare("SELECT password_hash, is_enabled FROM user_account WHERE email = ?").get(email)
+
         assert.notEqual(account.password_hash, value)
         assert.equal(await comparePassword(value, account.password_hash), true)
-        const login = await request("/login", { email, password: value })
-        assert.equal(login.response.status, 200)
-        assert.match(login.response.headers.get("Authorization"), /^Bearer /)
+
+        // Newly registered students cannot log in before activation
+        assert.equal(account.is_enabled, 0)
+
+        const loginBeforeActivation = await request("/login", { email, password: value })
+        assert.equal(loginBeforeActivation.response.status, 401)
+
+        // Simulate Supervisor activation for this password test
+        db.prepare("UPDATE user_account SET is_enabled = 1 WHERE email = ?").run(email)
+
+        const loginAfterActivation = await request("/login", { email, password: value })
+        assert.equal(loginAfterActivation.response.status, 200)
+        assert.match(loginAfterActivation.response.headers.get("Authorization"), /^Bearer /)
     }
 
-    const trimmedLogin = await request("/login", { email: "password-0@example.com", password: "spaced-password" })
-    assert.equal(trimmedLogin.response.status, 401)
+    const trimmedLogin = await request("/login", {
+        email: "password-0@example.com",
+        password: "spaced-password"
+    })
 
+    assert.equal(trimmedLogin.response.status, 401)
 })
 
 test("login accepts normalized email and existing shorter passwords without changing account identity", async () => {

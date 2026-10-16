@@ -75,3 +75,26 @@ export function logoutUser() {
     localStorage.removeItem("jwt")
     localStorage.removeItem("user")
 }
+
+export async function checkAccountStatus() {
+    const response = await fetch(
+        "http://localhost:3000/internships/me/status",
+        {
+            headers: {
+                Authorization: `Bearer ${getToken()}`
+            }
+        }
+    )
+
+    if (response.status === 401 || response.status === 403) {
+        return false
+    }
+
+    if (!response.ok) {
+        throw new Error("Unable to verify account status.")
+    }
+
+    const data = await response.json()
+
+    return data.isEnabled
+}

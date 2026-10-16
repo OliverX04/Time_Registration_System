@@ -86,6 +86,10 @@ export async function checkAccountStatus() {
         }
     )
 
+    if (response.status === 401 || response.status === 403) {
+        return false
+    }
+
     if (!response.ok) {
         throw new Error("Unable to verify account status.")
     }

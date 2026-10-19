@@ -5,6 +5,8 @@ export function runMigrations(db) {
         normalizeAccountEmails(db)
         addTaskCreator(db)
         addProjectArchive(db)
+        addTaskAssignmentNote(db)
+        addTaskAssignmentOwner(db)
     })()
 }
 
@@ -67,4 +69,35 @@ function addProjectArchive(db) {
     if (!projectColumns.includes("archived_at")) {
         db.exec("ALTER TABLE project ADD COLUMN archived_at TEXT")
     }
+}
+
+function addTaskAssignmentNote(db) {
+    const assignmentColumns = db
+        .prepare("PRAGMA table_info(task_assignment)")
+        .all()
+        .map((column) => column.name)
+
+    if (!assignmentColumns.includes("intern_note")) {
+        db.exec("ALTER TABLE task_assignment ADD COLUMN intern_note TEXT NOT NULL DEFAULT ''")
+    }
+}
+
+function addTaskAssignmentOwner(db) {
+    const assignmentColumns = db
+        .prepare("PRAGMA table_info(task_assignment)")
+        .all()
+        .map((column) => column.name)
+
+    if (!assignmentColumns.includes("assigned_by_user_id")) {
+        db.exec(`
+            ALTER TABLE task_assignment
+            ADD COLUMN assigned_by_user_id TEXT
+            REFERENCES user_account(id)
+        `)
+    }
+
+    db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_task_assignment_assigned_by_user_id
+        ON task_assignment(assigned_by_user_id)
+    `)
 }

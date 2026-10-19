@@ -1,6 +1,5 @@
 import { getToken } from "./authService.js"
-
-const API_URL = "http://localhost:3000"
+import { API_URL } from "./apiConfig.js"
 
 export async function getInterns() {
     const response = await fetch(`${API_URL}/internships`, {

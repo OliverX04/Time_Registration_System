@@ -49,11 +49,17 @@ internshipsRouter.get("/", requireSupervisor, (req, res) => {
             u.email,
             u.is_enabled AS isEnabled,
             i.id AS internshipId,
-            i.started_at AS startedAt
+            i.started_at AS startedAt,
+            p.id AS currentProjectId,
+            p.name AS currentProjectName
         FROM user_account u
         LEFT JOIN internship i
             ON i.intern_id = u.id
             AND i.ended_at IS NULL
+        LEFT JOIN project_assignment pa
+            ON pa.internship_id = i.id
+            AND pa.ended_at IS NULL
+        LEFT JOIN project p ON p.id = pa.project_id
         WHERE u.role = 'INTERN'
         ORDER BY u.first_name, u.last_name
     `).all()

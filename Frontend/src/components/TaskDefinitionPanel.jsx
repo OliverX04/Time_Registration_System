@@ -597,22 +597,26 @@ function formatTaskDuration(durationMs) {
 }
 
 function SupervisorTaskManager({ task, interns, assignments, busyAction, onToggleAssignment }) {
-    if (interns.length === 0) return <p className="task-empty">No active Interns.</p>
+    const taskInterns = interns.filter((intern) =>
+        intern.currentProjectId === task.projectId
+        || assignments.some((assignment) => assignment.taskId === task.id && assignment.internId === intern.id)
+    )
+
+    if (taskInterns.length === 0) return <p className="task-empty">No active Interns are assigned to this project.</p>
 
     return (
         <div>
             <h3>Assignments</h3>
             <ul className="task-intern-list">
-                {interns.map((intern) => {
+                {taskInterns.map((intern) => {
                     const assignment = assignments.find((item) => item.taskId === task.id && item.internId === intern.id)
-                    const currentProject = assignments.find((item) => item.internId === intern.id)?.projectName
 
                     return (
                         <li key={intern.id}>
                             <div>
                                 <strong>{intern.firstName} {intern.lastName}</strong>
                                 {assignment?.internNote && <small>Note: {assignment.internNote}</small>}
-                                {!assignment && currentProject && <small>Currently in {currentProject}</small>}
+                                {!assignment && intern.currentProjectName && <small>Currently in {intern.currentProjectName}</small>}
                             </div>
                             <button
                                 className="project-action"

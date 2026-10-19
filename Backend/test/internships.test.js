@@ -105,6 +105,48 @@ test("only Supervisors can manage internships", async () => {
 })
 
 
+test("the Intern list shows current project membership without needing task assignments", async () => {
+    for (const id of ["project-intern", "no-project-intern", "former-project-intern"]) {
+        addAccount(id, "INTERN")
+        db.prepare("INSERT INTO internship (id, intern_id, started_at) VALUES (?, ?, ?)")
+            .run(`${id}-internship`, id, "2026-10-01T08:00:00.000Z")
+    }
+
+    const insertProject = db.prepare("INSERT INTO project (id, created_by_user_id, name) VALUES (?, 'supervisor', ?)")
+    insertProject.run("old-project", "Old project")
+    insertProject.run("current-project", "Current project")
+
+    const insertAssignment = db.prepare(`
+        INSERT INTO project_assignment (internship_id, project_id, assigned_at, ended_at)
+        VALUES (?, ?, '2026-10-01T08:00:00.000Z', ?)
+    `)
+    insertAssignment.run("project-intern-internship", "old-project", "2026-10-10T08:00:00.000Z")
+    insertAssignment.run("project-intern-internship", "current-project", null)
+    insertAssignment.run("former-project-intern-internship", "old-project", "2026-10-10T08:00:00.000Z")
+
+    const result = await request("GET", "/internships")
+    assert.equal(result.status, 200)
+
+    const projectInterns = result.body.interns.filter((intern) => intern.id === "project-intern")
+    assert.equal(projectInterns.length, 1)
+    assert.equal(projectInterns[0].currentProjectId, "current-project")
+    assert.equal(projectInterns[0].currentProjectName, "Current project")
+
+    for (const id of ["intern", "no-project-intern", "former-project-intern"]) {
+        const intern = result.body.interns.find((item) => item.id === id)
+        assert.equal(intern.currentProjectId, null)
+        assert.equal(intern.currentProjectName, null)
+    }
+
+    db.prepare("UPDATE internship SET ended_at = ? WHERE id = ?")
+        .run("2026-10-15T08:00:00.000Z", "project-intern-internship")
+    const endedResult = await request("GET", "/internships")
+    const endedIntern = endedResult.body.interns.find((intern) => intern.id === "project-intern")
+    assert.equal(endedIntern.internshipId, null)
+    assert.equal(endedIntern.currentProjectId, null)
+    assert.equal(endedIntern.currentProjectName, null)
+})
+
 test("Supervisor can activate an intern", async () => {
     // Create a student waiting for activation
     addAccount("student1", "INTERN")

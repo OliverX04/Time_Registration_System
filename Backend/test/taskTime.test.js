@@ -40,7 +40,7 @@ before(async () => {
     addProjectAssignment("project-assignment", "internship", "project", null)
     addProjectAssignment("other-project-assignment", "other-internship", "project", null)
     addProjectAssignment("managed-project-assignment", "managed-internship", "project", null)
-    addProjectAssignment("archived-project-assignment", "internship", "archived-project", null)
+    addProjectAssignment("archived-project-assignment", "internship", "archived-project", "2026-10-15T08:00:00.000Z")
 
     addTask("task-a", "project", "Task A")
     addTask("task-b", "project", "Task B")

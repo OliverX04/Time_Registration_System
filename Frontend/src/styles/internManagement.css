@@ -97,3 +97,21 @@
     height: 35px;
     text-align: center;
 }
+.intern-project-controls {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 12px 0;
+}
+
+.intern-project-controls select {
+    padding: 8px;
+    max-width: 100%;
+}
+
+.intern-project-controls .intern-button {
+    width: auto;
+    height: auto;
+    margin-top: 0;
+}

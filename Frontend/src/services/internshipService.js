@@ -1,6 +1,21 @@
 import { getToken } from "./authService.js"
 import { API_URL } from "./apiConfig.js"
 
+export async function setProjectAssignment(internId, projectId) {
+    const ending = projectId === null
+    const response = await fetch(`${API_URL}/internships/${encodeURIComponent(internId)}/project-assignment${ending ? "/end" : ""}`, {
+        method: ending ? "POST" : "PUT",
+        headers: {
+            Authorization: `Bearer ${getToken()}`,
+            "Content-Type": "application/json"
+        },
+        body: ending ? undefined : JSON.stringify({ projectId })
+    })
+    const data = await response.json()
+    if (!response.ok) throw new Error(data.error || "Failed to update project assignment.")
+    return data
+}
+
 export async function getInterns() {
     const response = await fetch(`${API_URL}/internships`, {
         headers: {

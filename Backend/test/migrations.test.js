@@ -6,6 +6,9 @@ import { runMigrations } from "../src/database/migrations.js"
 
 const schema = fs.readFileSync(new URL("../src/database/schema.sql", import.meta.url), "utf8")
 const legacySchema = schema
+    .replace(/^    expected_weekly_hours REAL NOT NULL DEFAULT 37\r?\n        CHECK \(expected_weekly_hours > 0 AND expected_weekly_hours <= 168\),\r?\n/m, "")
+    .replace(/^    working_days TEXT NOT NULL DEFAULT '\[1,2,3,4,5\]'\r?\n/m, "")
+    .replace(/(is_enabled INTEGER NOT NULL DEFAULT 1 CHECK \(is_enabled IN \(0, 1\)\)),/, "$1")
     .replace(/^    archived_at TEXT,\r?\n/m, "")
     .replace(/^    assigned_by_user_id TEXT,\r?\n/m, "")
     .replace(/^    intern_note TEXT NOT NULL DEFAULT '',\r?\n/m, "")
@@ -91,6 +94,10 @@ test("migration normalizes legacy email while preserving identities, history and
         const expected = records(db)
         expected.user_account[0].email = "intern@example.com"
         expected.user_account[1].email = "boss@example.com"
+        for (const account of expected.user_account) {
+            account.expected_weekly_hours = 37
+            account.working_days = "[1,2,3,4,5]"
+        }
         expected.task[0].created_by_user_id = null
         expected.project[0].archived_at = null
         expected.task_assignment[0].intern_note = ""

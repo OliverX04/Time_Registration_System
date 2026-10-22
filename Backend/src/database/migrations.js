@@ -8,7 +8,32 @@ export function runMigrations(db) {
         addTaskAssignmentNote(db)
         addTaskAssignmentOwner(db)
         addActiveProjectAssignmentConstraint(db)
+        addInternStatisticsSettings(db)
     })()
+}
+
+function addInternStatisticsSettings(db) {
+    const accountColumns = db
+        .prepare("PRAGMA table_info(user_account)")
+        .all()
+        .map((column) => column.name)
+
+    if (!accountColumns.includes("expected_weekly_hours")) {
+        db.exec(`
+            ALTER TABLE user_account
+            ADD COLUMN expected_weekly_hours REAL NOT NULL DEFAULT 37
+            CHECK (expected_weekly_hours > 0 AND expected_weekly_hours <= 168)
+        `)
+    }
+
+    db.exec("UPDATE user_account SET expected_weekly_hours = 37 WHERE expected_weekly_hours IS NULL")
+
+    if (!accountColumns.includes("working_days")) {
+        db.exec(`
+            ALTER TABLE user_account
+            ADD COLUMN working_days TEXT NOT NULL DEFAULT '[1,2,3,4,5]'
+        `)
+    }
 }
 
 function addActiveProjectAssignmentConstraint(db) {

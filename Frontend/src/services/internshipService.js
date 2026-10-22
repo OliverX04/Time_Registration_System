@@ -16,6 +16,20 @@ export async function setProjectAssignment(internId, projectId) {
     return data
 }
 
+export async function updateInternStatisticsSettings(internId, settings) {
+    const response = await fetch(`${API_URL}/internships/${encodeURIComponent(internId)}/statistics-settings`, {
+        method: "PATCH",
+        headers: {
+            Authorization: `Bearer ${getToken()}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(settings)
+    })
+    const data = await response.json()
+    if (!response.ok) throw new Error(data.error || "Failed to save statistics settings.")
+    return data
+}
+
 export async function getInterns() {
     const response = await fetch(`${API_URL}/internships`, {
         headers: {

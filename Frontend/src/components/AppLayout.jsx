@@ -41,6 +41,10 @@ function AppLayout({ children }) {
                         </NavLink>
                     )}
 
+                    <NavLink className="sidebar-link" to={`${homePath}/statistics`}>
+                        Statistics
+                    </NavLink>
+
                     <NavLink className="sidebar-link" to={`${homePath}/tasks`}>
                         Tasks
                     </NavLink>

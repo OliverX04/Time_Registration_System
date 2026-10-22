@@ -8,7 +8,10 @@ CREATE TABLE IF NOT EXISTS user_account (
     email TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
     role TEXT NOT NULL CHECK (role IN ('INTERN', 'SUPERVISOR')),
-    is_enabled INTEGER NOT NULL DEFAULT 1 CHECK (is_enabled IN (0, 1))
+    is_enabled INTEGER NOT NULL DEFAULT 1 CHECK (is_enabled IN (0, 1)),
+    expected_weekly_hours REAL NOT NULL DEFAULT 37
+        CHECK (expected_weekly_hours > 0 AND expected_weekly_hours <= 168),
+    working_days TEXT NOT NULL DEFAULT '[1,2,3,4,5]'
 );
 
 CREATE TABLE IF NOT EXISTS internship (

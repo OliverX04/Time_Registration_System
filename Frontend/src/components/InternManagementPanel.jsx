@@ -28,7 +28,9 @@ function InternManagementPanel() {
                 ? "active"
                 : intern.isEnabled
                     ? "awaiting"
-                    : "inactive"
+                    : intern.lastOutcome
+                        ? "former"
+                        : "inactive"
             const matchesStatus = statusFilter === "all" || status === statusFilter
             const searchableText = [
                 intern.firstName,
@@ -175,6 +177,7 @@ function InternManagementPanel() {
                         <option value="all">All statuses</option>
                         <option value="active">Active</option>
                         <option value="awaiting">Awaiting activation</option>
+                        <option value="former">Former interns</option>
                         <option value="inactive">Inactive</option>
                     </select>
                 </label>
@@ -211,7 +214,7 @@ function InternManagementPanel() {
                                             <span>{intern.email}</span>
                                         </th>
                                         <td>
-                                            <span>{intern.currentProjectName || "Unassigned"}</span>
+                                            <span>{intern.currentProjectName || intern.lastProjectName || "Unassigned"}</span>
                                             {Boolean(intern.internshipId && intern.isEnabled) && (
                                                 <div className="intern-project-controls">
                                                     <select
@@ -241,8 +244,17 @@ function InternManagementPanel() {
                                         </td>
                                         <td>
                                             <span className={intern.internshipId ? "intern-active" : intern.isEnabled ? "intern-awaiting" : "intern-inactive"}>
-                                                {intern.internshipId ? "Active" : intern.isEnabled ? "Awaiting activation" : "Inactive"}
+                                                {intern.internshipId
+                                                    ? "Active"
+                                                    : intern.isEnabled
+                                                        ? "Awaiting activation"
+                                                        : intern.lastOutcome
+                                                            ? `Former · ${intern.lastOutcome.toLowerCase()}`
+                                                            : "Inactive"}
                                             </span>
+                                            {!intern.internshipId && intern.lastEndedAt && (
+                                                <div>{formatDate(intern.lastEndedAt)}</div>
+                                            )}
                                         </td>
                                         <td>
                                             {intern.internshipId ? (
@@ -274,6 +286,15 @@ function InternManagementPanel() {
             )}
         </section>
     )
+}
+
+function formatDate(value) {
+    return `Ended ${new Intl.DateTimeFormat("en", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        timeZone: "Europe/Copenhagen"
+    }).format(new Date(value))}`
 }
 
 export default InternManagementPanel

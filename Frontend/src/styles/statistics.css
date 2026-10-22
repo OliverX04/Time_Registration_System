@@ -79,6 +79,38 @@
     cursor: wait;
 }
 
+.statistics-filters .statistics-clear-button {
+    color: #334155;
+    background: #e2e8f0;
+}
+
+.statistics-filter-pending {
+    margin: -12px 0 20px;
+    color: #9a3412;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.statistics-progress {
+    margin-bottom: 24px;
+}
+
+.statistics-progress>h2 {
+    margin: 0 0 6px;
+    color: #1f2937;
+    font-size: 18px;
+}
+
+.statistics-progress>p {
+    margin: 0 0 14px;
+    color: #64748b;
+    font-size: 14px;
+}
+
+.statistics-progress .statistics-summary {
+    margin-bottom: 0;
+}
+
 .statistics-settings {
     display: grid;
     grid-template-columns: minmax(180px, 1fr) minmax(130px, 180px) minmax(280px, 2fr) auto;
@@ -156,7 +188,7 @@
 
 .statistics-summary {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
     gap: 16px;
     margin-bottom: 28px;
 }
@@ -229,6 +261,13 @@
 .statistics-section td {
     color: #4b5563;
     font-variant-numeric: tabular-nums;
+}
+
+.statistics-section .statistics-row-number {
+    width: 1%;
+    color: #94a3b8;
+    font-size: 13px;
+    font-weight: 600;
 }
 
 .statistics-breakdowns {

@@ -56,6 +56,7 @@ export function getStatistics({ internId = null, projectId = null, startDate = n
     const attendanceDifferenceMs = expectedPresenceDurationMs === null
         ? null
         : attendanceDurationMs - expectedPresenceDurationMs
+    const progress = getInternshipProgress(internId, internSettings, timeZone)
 
     const byDay = [...daily.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([date, totals]) => ({ date, ...totals }))
     const byWeek = [...weekly.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([weekStarting, totals]) => ({ weekStarting, ...totals }))
@@ -75,6 +76,7 @@ export function getStatistics({ internId = null, projectId = null, startDate = n
     return {
         filters: { startDate, endDate, internId, projectId },
         timeZone,
+        progress,
         totals: { attendanceDurationMs, expectedPresenceDurationMs, attendanceDifferenceMs, taskDurationMs },
         byDay,
         byWeek,
@@ -87,6 +89,77 @@ export function getStatistics({ internId = null, projectId = null, startDate = n
             .sort((a, b) => a.name.localeCompare(b.name))
             .map(({ id, name, projectName, durationMs }) => ({ id, title: name, projectName, durationMs }))
     }
+}
+
+function getInternshipProgress(internId, internSettings, timeZone) {
+    const range = createRange(null, null, timeZone)
+    const progressAttendance = getAttendanceSessions(internId, range)
+    const progressInterns = new Map(internSettings.map((intern) => [intern.internId, {
+        ...intern,
+        attendanceDurationMs: 0,
+        expectedPresenceDurationMs: 0,
+        expectedTargetDurationMs: null,
+        attendanceDifferenceMs: 0
+    }]))
+
+    for (const session of progressAttendance) {
+        const durationMs = clipDuration(session.startedAt, session.endedAt, range)
+        if (durationMs > 0) addInternDuration(progressInterns, session, "attendanceDurationMs", durationMs)
+    }
+
+    const daily = new Map()
+    const weekly = new Map()
+    const monthly = new Map()
+    addExpectedPresence(internSettings, progressInterns, daily, weekly, monthly, range)
+
+    const rows = [...progressInterns.values()]
+    const hasCompleteTargets = rows.every((intern) =>
+        intern.expectedPresenceDurationMs !== null && intern.expectedTargetDurationMs !== null
+    )
+    if (!hasCompleteTargets) {
+        return {
+            attendanceDurationMs: rows.reduce((total, intern) => total + intern.attendanceDurationMs, 0),
+            expectedToDateDurationMs: null,
+            targetDurationMs: null,
+            targetEndDate: null,
+            endedDate: null,
+            differenceDurationMs: null,
+            remainingToTargetDurationMs: null,
+            overTargetDurationMs: null
+        }
+    }
+
+    return {
+        attendanceDurationMs: rows.reduce((total, intern) => total + intern.attendanceDurationMs, 0),
+        expectedToDateDurationMs: rows.reduce((total, intern) => total + intern.expectedPresenceDurationMs, 0),
+        targetDurationMs: rows.reduce((total, intern) => total + intern.expectedTargetDurationMs, 0),
+        targetEndDate: rows.length === 1 && rows[0].internshipPeriods.length === 1 && !rows[0].internshipPeriods[0].endedAt
+            ? getTargetEndDate(rows[0].internshipPeriods[0].startedAt, rows[0].workingDays, timeZone)
+            : null,
+        endedDate: rows.length === 1 && rows[0].internshipPeriods.length === 1 && rows[0].internshipPeriods[0].endedAt
+            ? localDateKey(Date.parse(rows[0].internshipPeriods[0].endedAt), timeZone)
+            : null,
+        differenceDurationMs: rows.reduce((total, intern) =>
+            total + intern.attendanceDurationMs - intern.expectedPresenceDurationMs, 0
+        ),
+        remainingToTargetDurationMs: rows.reduce((total, intern) =>
+            total + Math.max(0, intern.expectedTargetDurationMs - intern.attendanceDurationMs), 0
+        ),
+        overTargetDurationMs: rows.reduce((total, intern) =>
+            total + Math.max(0, intern.attendanceDurationMs - intern.expectedTargetDurationMs), 0
+        )
+    }
+}
+
+function getTargetEndDate(startedAt, workingDays, timeZone) {
+    let date = localDateKey(Date.parse(startedAt), timeZone)
+    let count = 0
+    while (count < EXPECTED_INTERNSHIP_WORKING_DAYS) {
+        const weekday = ((new Date(`${date}T00:00:00.000Z`).getUTCDay() + 6) % 7) + 1
+        if (workingDays.includes(weekday)) count += 1
+        if (count < EXPECTED_INTERNSHIP_WORKING_DAYS) date = addCalendarDays(date, 1)
+    }
+    return date
 }
 
 function createRange(startDate, endDate, timeZone) {
@@ -310,6 +383,9 @@ function addExpectedPresence(internSettings, interns, daily, weekly, monthly, ra
         }
 
         const hoursPerWorkingDay = intern.expectedWeeklyHours / intern.workingDays.length
+        summary.expectedTargetDurationMs = intern.internshipPeriods.length > 0
+            ? hoursPerWorkingDay * EXPECTED_INTERNSHIP_WORKING_DAYS * 60 * 60 * 1000 * intern.internshipPeriods.length
+            : null
         for (const period of intern.internshipPeriods) {
             const startMs = Math.max(Date.parse(period.startedAt), range.startMs)
             const endMs = Math.min(period.endedAt ? Date.parse(period.endedAt) : now, range.endMs, now)

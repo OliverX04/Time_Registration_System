@@ -6,7 +6,7 @@ export async function getStatistics(filters = {}, isSupervisor = false) {
     for (const key of ["startDate", "endDate", "internId", "projectId"]) {
         if (filters[key]) params.set(key, filters[key])
     }
-    params.set("timeZone", Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC")
+    params.set("timeZone", "Europe/Copenhagen")
 
     const route = isSupervisor ? "/statistics" : "/statistics/me"
     const query = params.size ? `?${params}` : ""

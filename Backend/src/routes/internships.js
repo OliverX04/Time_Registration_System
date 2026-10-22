@@ -151,6 +151,13 @@ internshipsRouter.get("/", requireSupervisor, (req, res) => {
             u.is_enabled AS isEnabled,
             u.expected_weekly_hours AS expectedWeeklyHours,
             u.working_days AS workingDays,
+            (SELECT ended_at FROM internship WHERE intern_id = u.id AND ended_at IS NOT NULL ORDER BY ended_at DESC LIMIT 1) AS lastEndedAt,
+            (SELECT outcome FROM internship WHERE intern_id = u.id AND ended_at IS NOT NULL ORDER BY ended_at DESC LIMIT 1) AS lastOutcome,
+            (SELECT project.name FROM project_assignment pa
+                JOIN project ON project.id = pa.project_id
+                JOIN internship history ON history.id = pa.internship_id
+                WHERE history.intern_id = u.id AND pa.ended_at IS NOT NULL
+                ORDER BY pa.ended_at DESC LIMIT 1) AS lastProjectName,
             i.id AS internshipId,
             i.started_at AS startedAt,
             p.id AS currentProjectId,

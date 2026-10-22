@@ -44,7 +44,7 @@ async function seedDemoCohort() {
         GROUP BY project.id
     `).all().map((row) => [row.projectName, { ...row, count: Number(row.count) }]))
 
-    const existingInternCount = db.prepare("SELECT COUNT(*) AS count FROM user_account WHERE role = 'INTERN'").get().count
+    const existingInternCount = db.prepare("SELECT COUNT(*) AS count FROM user_account WHERE role = 'INTERN' AND is_enabled = 1").get().count
     const assignedInternCount = [...assignedCounts.values()].reduce((total, project) => total + project.count, 0)
     if (existingInternCount !== assignedInternCount) {
         throw new Error(`Expected all ${existingInternCount} existing Interns to have one active project assignment; found ${assignedInternCount}. Resolve the current demo data before seeding.`)

@@ -20,6 +20,8 @@ function InternManagementPanel() {
     const [search, setSearch] = useState("")
     const [statusFilter, setStatusFilter] = useState("all")
     const [page, setPage] = useState(1)
+    const [deactivationCandidate, setDeactivationCandidate] = useState(null)
+    const [deactivationOutcome, setDeactivationOutcome] = useState("COMPLETED")
 
     const filteredInterns = useMemo(() => {
         const normalizedSearch = search.trim().toLocaleLowerCase()
@@ -108,35 +110,25 @@ function InternManagementPanel() {
         }
     }
 
-    async function handleDeactivate(intern) {
-        if (busy) return
+    function handleDeactivate(intern) {
+        setError("")
+        setMessage("")
+        setDeactivationOutcome("COMPLETED")
+        setDeactivationCandidate(intern)
+    }
 
-        const outcome = window.prompt(
-            "Enter COMPLETED or DISCONTINUED:",
-            "COMPLETED"
-        )
-
-        if (outcome === null) return
-
-        const selectedOutcome = outcome.trim().toUpperCase()
-
-        if (!["COMPLETED", "DISCONTINUED"].includes(selectedOutcome)) {
-            setError("Please enter COMPLETED or DISCONTINUED.")
-            return
-        }
-
-        const confirmed = window.confirm(
-            `Deactivate ${intern.firstName} ${intern.lastName}?`
-        )
-
-        if (!confirmed) return
+    async function confirmDeactivate(event) {
+        event.preventDefault()
+        if (busy || !deactivationCandidate) return
 
         setBusy(true)
         setError("")
 
         try {
-            await deactivateIntern(intern.id, selectedOutcome)
+            await deactivateIntern(deactivationCandidate.id, deactivationOutcome)
             setInterns(await getInterns())
+            setMessage(`${deactivationCandidate.firstName} ${deactivationCandidate.lastName} was deactivated.`)
+            setDeactivationCandidate(null)
         } catch (err) {
             setError(err.message)
         } finally {
@@ -190,6 +182,47 @@ function InternManagementPanel() {
                 </p>
             )}
             {message && <p role="status">{message}</p>}
+
+            {deactivationCandidate && (
+                <div className="intern-dialog-backdrop">
+                    <form
+                        className="intern-deactivation-dialog"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="intern-deactivation-title"
+                        onSubmit={confirmDeactivate}
+                    >
+                        <h3 id="intern-deactivation-title">
+                            Deactivate {deactivationCandidate.firstName} {deactivationCandidate.lastName}?
+                        </h3>
+                        <p>This ends the current internship and disables the intern account.</p>
+                        <label htmlFor="intern-deactivation-outcome">Outcome</label>
+                        <select
+                            id="intern-deactivation-outcome"
+                            value={deactivationOutcome}
+                            onChange={(event) => setDeactivationOutcome(event.target.value)}
+                            disabled={busy}
+                        >
+                            <option value="COMPLETED">Completed</option>
+                            <option value="DISCONTINUED">Discontinued</option>
+                        </select>
+                        {error && <p className="intern-error-message" role="alert">{error}</p>}
+                        <div className="intern-deactivation-actions">
+                            <button
+                                type="button"
+                                className="intern-dialog-cancel"
+                                disabled={busy}
+                                onClick={() => setDeactivationCandidate(null)}
+                            >
+                                Cancel
+                            </button>
+                            <button type="submit" className="intern-button deactivate-button" disabled={busy}>
+                                {busy ? "Deactivating…" : "Deactivate intern"}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            )}
 
             {interns.length === 0 && !error && (
                 <p>No registered interns found.</p>

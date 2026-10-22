@@ -7,6 +7,73 @@
     margin: 12px 0;
 }
 
+.intern-dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    background: rgb(15 23 42 / 48%);
+}
+
+.intern-deactivation-dialog {
+    display: grid;
+    gap: 12px;
+    width: min(100%, 440px);
+    padding: 24px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 20px 60px rgb(15 23 42 / 24%);
+}
+
+.intern-deactivation-dialog h3,
+.intern-deactivation-dialog p {
+    margin: 0;
+}
+
+.intern-deactivation-dialog>p {
+    color: #64748b;
+}
+
+.intern-deactivation-dialog label {
+    color: #374151;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.intern-deactivation-dialog select {
+    min-height: 40px;
+    padding: 8px 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #fff;
+    font: inherit;
+}
+
+.intern-deactivation-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.intern-dialog-cancel {
+    padding: 8px 14px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #fff;
+    color: #334155;
+    font: inherit;
+    cursor: pointer;
+}
+
+.intern-dialog-cancel:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 .intern-management {
     margin-top: 24px;
     text-align: left;

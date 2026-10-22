@@ -6,6 +6,7 @@ import { projectsRouter } from "./routes/projects.js"
 import { attendanceRouter } from "./routes/attendance.js"
 import { internshipsRouter } from "./routes/internships.js"
 import { taskTimeRouter } from "./routes/taskTime.js"
+import { statisticsRouter } from "./routes/statistics.js"
 
 export const app = express()
 
@@ -18,6 +19,7 @@ app.use("/projects", projectsRouter)
 app.use("/attendance", attendanceRouter)
 app.use("/internships", internshipsRouter)
 app.use("/task-time", taskTimeRouter)
+app.use("/statistics", statisticsRouter)
 
 app.use((err, req, res, next) => {
     if (err.type === "entity.parse.failed") {

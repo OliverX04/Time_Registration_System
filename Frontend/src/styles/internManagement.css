@@ -7,6 +7,73 @@
     margin: 12px 0;
 }
 
+.intern-dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    background: rgb(15 23 42 / 48%);
+}
+
+.intern-deactivation-dialog {
+    display: grid;
+    gap: 12px;
+    width: min(100%, 440px);
+    padding: 24px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 20px 60px rgb(15 23 42 / 24%);
+}
+
+.intern-deactivation-dialog h3,
+.intern-deactivation-dialog p {
+    margin: 0;
+}
+
+.intern-deactivation-dialog>p {
+    color: #64748b;
+}
+
+.intern-deactivation-dialog label {
+    color: #374151;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.intern-deactivation-dialog select {
+    min-height: 40px;
+    padding: 8px 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #fff;
+    font: inherit;
+}
+
+.intern-deactivation-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.intern-dialog-cancel {
+    padding: 8px 14px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #fff;
+    color: #334155;
+    font: inherit;
+    cursor: pointer;
+}
+
+.intern-dialog-cancel:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 .intern-management {
     margin-top: 24px;
     text-align: left;
@@ -20,22 +87,133 @@
     margin-bottom: 20px;
 }
 
-.intern-card {
-    background-color: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 20px;
+.intern-list-controls {
+    display: flex;
+    align-items: end;
+    gap: 14px;
     margin-bottom: 16px;
 }
 
-.intern-card h3 {
-    margin: 0 0 10px;
-    color: #1e293b;
+.intern-list-controls label {
+    display: grid;
+    gap: 6px;
+    color: #374151;
+    font-size: 13px;
+    font-weight: 600;
 }
 
-.intern-card p {
+.intern-list-controls input,
+.intern-list-controls select {
+    min-height: 38px;
+    min-width: 220px;
+    padding: 7px 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #fff;
+    color: #111827;
+    font: inherit;
+}
+
+.intern-list-controls select {
+    min-width: 180px;
+}
+
+.intern-result-count {
+    margin: 0 0 9px auto;
     color: #64748b;
-    margin: 8px 0;
+    font-size: 14px;
+}
+
+.intern-table-wrap {
+    overflow-x: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+}
+
+.intern-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.intern-table th,
+.intern-table td {
+    padding: 11px 12px;
+    border-bottom: 1px solid #e2e8f0;
+    text-align: left;
+    vertical-align: middle;
+}
+
+.intern-table thead th {
+    background: #f8fafc;
+    color: #475569;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.intern-table tbody tr:last-child th,
+.intern-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.intern-table tbody tr:hover {
+    background: #f8fafc;
+}
+
+.intern-table tbody th {
+    min-width: 190px;
+    font-weight: 500;
+}
+
+.intern-table tbody th strong,
+.intern-table tbody th span {
+    display: block;
+}
+
+.intern-table tbody th span {
+    margin-top: 3px;
+    color: #64748b;
+    font-size: 12px;
+}
+
+.intern-empty-state {
+    padding: 20px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 8px;
+    color: #64748b;
+    text-align: center;
+}
+
+.intern-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 12px;
+    color: #64748b;
+    font-size: 13px;
+}
+
+.intern-pagination,
+.intern-pagination>div {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.intern-pagination button {
+    padding: 7px 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #fff;
+    color: #334155;
+    cursor: pointer;
+}
+
+.intern-pagination button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
 }
 
 .intern-button {
@@ -45,7 +223,8 @@
     color: white;
     font-weight: 600;
     cursor: pointer;
-    margin-top: 10px;
+    margin-top: 0;
+    white-space: nowrap;
 }
 
 .activate-button {
@@ -92,17 +271,17 @@
     color: white;
     font-weight: 600;
     cursor: pointer;
-    margin-top: 10px;
-    width: 150px;
-    height: 35px;
+    margin-top: 0;
+    width: auto;
+    min-height: 34px;
     text-align: center;
 }
 .intern-project-controls {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 10px;
-    margin: 12px 0;
+    gap: 6px;
+    margin-top: 7px;
 }
 
 .intern-project-controls select {
@@ -114,4 +293,26 @@
     width: auto;
     height: auto;
     margin-top: 0;
+}
+
+@media (max-width: 760px) {
+    .intern-list-controls {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .intern-list-controls input,
+    .intern-list-controls select {
+        box-sizing: border-box;
+        width: 100%;
+    }
+
+    .intern-result-count {
+        margin: 0;
+    }
+
+    .intern-pagination {
+        align-items: flex-start;
+        flex-direction: column;
+    }
 }

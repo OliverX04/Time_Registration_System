@@ -58,6 +58,41 @@ internshipsRouter.post("/:internId/project-assignment/end", requireSupervisor, (
     res.status(result.status).send(result.body)
 })
 
+internshipsRouter.patch("/:internId/statistics-settings", requireSupervisor, (req, res) => {
+    const expectedWeeklyHours = req.body?.expectedWeeklyHours
+    const workingDays = req.body?.workingDays
+    const validHours = typeof expectedWeeklyHours === "number"
+        && Number.isFinite(expectedWeeklyHours) && expectedWeeklyHours > 0 && expectedWeeklyHours <= 168
+    const validWorkingDays = Array.isArray(workingDays)
+        && workingDays.length > 0
+        && workingDays.every((day) => Number.isInteger(day) && day >= 1 && day <= 7)
+        && new Set(workingDays).size === workingDays.length
+
+    if (!validHours || !validWorkingDays) {
+        return res.status(400).send({
+            error: "Enter expected weekly hours from 0.01 to 168 and choose at least one working day."
+        })
+    }
+
+    const intern = db.prepare("SELECT id FROM user_account WHERE id = ? AND role = 'INTERN'").get(req.params.internId)
+    if (!intern) return res.status(404).send({ error: "Intern not found." })
+
+    db.prepare(`
+        UPDATE user_account
+        SET expected_weekly_hours = ?, working_days = ?
+        WHERE id = ?
+    `).run(expectedWeeklyHours, JSON.stringify([...workingDays].sort((a, b) => a - b)), intern.id)
+
+    const settings = db.prepare(`
+        SELECT expected_weekly_hours AS expectedWeeklyHours, working_days AS workingDays
+        FROM user_account WHERE id = ?
+    `).get(intern.id)
+    res.send({
+        expectedWeeklyHours: settings.expectedWeeklyHours,
+        workingDays: JSON.parse(settings.workingDays)
+    })
+})
+
 function changeProjectAssignment(internId, projectId) {
     return db.transaction(() => {
         const intern = db.prepare("SELECT role, is_enabled FROM user_account WHERE id = ?").get(internId)
@@ -114,6 +149,15 @@ internshipsRouter.get("/", requireSupervisor, (req, res) => {
             u.last_name AS lastName,
             u.email,
             u.is_enabled AS isEnabled,
+            u.expected_weekly_hours AS expectedWeeklyHours,
+            u.working_days AS workingDays,
+            (SELECT ended_at FROM internship WHERE intern_id = u.id AND ended_at IS NOT NULL ORDER BY ended_at DESC LIMIT 1) AS lastEndedAt,
+            (SELECT outcome FROM internship WHERE intern_id = u.id AND ended_at IS NOT NULL ORDER BY ended_at DESC LIMIT 1) AS lastOutcome,
+            (SELECT project.name FROM project_assignment pa
+                JOIN project ON project.id = pa.project_id
+                JOIN internship history ON history.id = pa.internship_id
+                WHERE history.intern_id = u.id AND pa.ended_at IS NOT NULL
+                ORDER BY pa.ended_at DESC LIMIT 1) AS lastProjectName,
             i.id AS internshipId,
             i.started_at AS startedAt,
             p.id AS currentProjectId,
@@ -130,7 +174,7 @@ internshipsRouter.get("/", requireSupervisor, (req, res) => {
         ORDER BY u.first_name, u.last_name
     `).all()
 
-    res.send({ interns })
+    res.send({ interns: interns.map((intern) => ({ ...intern, workingDays: JSON.parse(intern.workingDays) })) })
 })
 
 internshipsRouter.post("/:internId/activate", requireSupervisor, (req, res) => {

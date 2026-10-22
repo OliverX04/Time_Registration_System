@@ -6,6 +6,8 @@ import SupervisorDashboard from "./pages/SupervisorDashboard.jsx"
 import Projects from "./pages/Projects.jsx"
 import Tasks from "./pages/Tasks.jsx"
 import AttendanceHistory from "./pages/AttendanceHistory.jsx"
+import Statistics from "./pages/Statistics.jsx"
+import Interns from "./pages/Interns.jsx"
 import ProtectedRoute from "./components/ProtectedRoute.jsx"
 import "./styles/auth.css"
 
@@ -59,6 +61,15 @@ function App() {
             />
 
             <Route
+                path="/intern-dashboard/statistics"
+                element={
+                    <ProtectedRoute requiredRole="INTERN">
+                        <Statistics />
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
                 path="/intern-dashboard/task-time"
                 element={<Navigate to="/intern-dashboard/tasks" replace />}
             />
@@ -73,10 +84,28 @@ function App() {
             />
 
             <Route
+                path="/supervisor-dashboard/interns"
+                element={
+                    <ProtectedRoute requiredRole="SUPERVISOR">
+                        <Interns />
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
                 path="/supervisor-dashboard/tasks"
                 element={
                     <ProtectedRoute requiredRole="SUPERVISOR">
                         <Tasks />
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/supervisor-dashboard/statistics"
+                element={
+                    <ProtectedRoute requiredRole="SUPERVISOR">
+                        <Statistics />
                     </ProtectedRoute>
                 }
             />

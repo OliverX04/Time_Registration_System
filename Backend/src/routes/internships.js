@@ -26,6 +26,9 @@ internshipsRouter.get("/me/status", (req, res) => {
 })
 
 function requireSupervisor(req, res, next) {
+    if (typeof req.user?.id !== "string") {
+        return res.status(401).send({ error: "Unauthorized" })
+    }
     const user = db.prepare(
         "SELECT role, is_enabled FROM user_account WHERE id = ?"
     ).get(req.user.id)
@@ -37,6 +40,69 @@ function requireSupervisor(req, res, next) {
     }
 
     next()
+}
+
+// PUT selects the current project; ending closes the record instead of deleting it.
+internshipsRouter.put("/:internId/project-assignment", requireSupervisor, (req, res) => {
+    const projectId = typeof req.body?.projectId === "string" ? req.body.projectId.trim() : ""
+    if (!projectId) {
+        return res.status(400).send({ error: "Please choose a project." })
+    }
+
+    const result = changeProjectAssignment(req.params.internId, projectId)
+    res.status(result.status).send(result.body)
+})
+
+internshipsRouter.post("/:internId/project-assignment/end", requireSupervisor, (req, res) => {
+    const result = changeProjectAssignment(req.params.internId, null)
+    res.status(result.status).send(result.body)
+})
+
+function changeProjectAssignment(internId, projectId) {
+    return db.transaction(() => {
+        const intern = db.prepare("SELECT role, is_enabled FROM user_account WHERE id = ?").get(internId)
+        if (!intern || intern.role !== "INTERN") {
+            return { status: 404, body: { error: "Intern not found." } }
+        }
+        const internships = db.prepare("SELECT id FROM internship WHERE intern_id = ? AND ended_at IS NULL").all(internId)
+        if (!intern.is_enabled || internships.length !== 1) {
+            return { status: 409, body: { error: "Intern must have exactly one active internship and an enabled account." } }
+        }
+        const internshipId = internships[0].id
+        if (projectId !== null) {
+            const project = db.prepare("SELECT archived_at FROM project WHERE id = ?").get(projectId)
+            if (!project) return { status: 404, body: { error: "Project not found." } }
+            if (project.archived_at !== null) {
+                return { status: 409, body: { error: "Archived projects cannot receive assignments." } }
+            }
+        }
+        const current = db.prepare("SELECT * FROM project_assignment WHERE internship_id = ? AND ended_at IS NULL").get(internshipId)
+        if (current?.project_id === projectId || (!current && projectId === null)) {
+            return { status: 200, body: { message: "Project assignment is already up to date." } }
+        }
+        const openTimer = db.prepare(`
+            SELECT 1 FROM task_time_entry tte
+            JOIN task_assignment ta ON ta.id = tte.task_assignment_id
+            WHERE ta.internship_id = ? AND tte.ended_at IS NULL
+        `).get(internshipId)
+        if (openTimer) {
+            return { status: 409, body: { error: "Finish open task time sessions before changing the project assignment." } }
+        }
+        const now = new Date().toISOString()
+        if (current) {
+            db.prepare("UPDATE project_assignment SET ended_at = ? WHERE id = ?").run(now, current.id)
+            db.prepare(`
+                UPDATE task_assignment SET ended_at = ?
+                WHERE internship_id = ? AND ended_at IS NULL
+                    AND task_id IN (SELECT id FROM task WHERE project_id = ?)
+            `).run(now, internshipId, current.project_id)
+        }
+        if (projectId !== null) {
+            db.prepare("INSERT INTO project_assignment (internship_id, project_id, assigned_at) VALUES (?, ?, ?)")
+                .run(internshipId, projectId, now)
+        }
+        return { status: current || projectId === null ? 200 : 201, body: { message: "Project assignment updated successfully." } }
+    }).immediate()
 }
 
 

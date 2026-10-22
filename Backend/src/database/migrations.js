@@ -7,7 +7,25 @@ export function runMigrations(db) {
         addProjectArchive(db)
         addTaskAssignmentNote(db)
         addTaskAssignmentOwner(db)
+        addActiveProjectAssignmentConstraint(db)
     })()
+}
+
+function addActiveProjectAssignmentConstraint(db) {
+    const duplicate = db.prepare(`
+        SELECT internship_id FROM project_assignment
+        WHERE ended_at IS NULL
+        GROUP BY internship_id HAVING COUNT(*) > 1
+    `).get()
+
+    if (duplicate) {
+        throw new Error(`Project assignment migration stopped: internship ${duplicate.internship_id} has multiple active assignments. Resolve the conflicting assignments before starting the server.`)
+    }
+
+    db.exec(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_project_assignment_one_active
+        ON project_assignment(internship_id) WHERE ended_at IS NULL
+    `)
 }
 
 function normalizeAccountEmails(db) {

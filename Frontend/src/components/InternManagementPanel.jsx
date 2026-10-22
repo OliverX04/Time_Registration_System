@@ -4,21 +4,29 @@ import { useEffect, useState } from "react"
 import {
     getInterns,
     activateIntern,
-    deactivateIntern
+    deactivateIntern,
+    setProjectAssignment
 } from "../services/internshipService.js"
+import { getProjects } from "../services/projectService.js"
 
 function InternManagementPanel() {
     const [interns, setInterns] = useState([])
     const [error, setError] = useState("")
     const [busy, setBusy] = useState(false)
+    const [projects, setProjects] = useState([])
+    const [selectedProjects, setSelectedProjects] = useState({})
+    const [message, setMessage] = useState("")
 
     useEffect(() => {
         let cancelled = false
 
         async function loadInterns() {
             try {
-                const data = await getInterns()
-                if (!cancelled) setInterns(data)
+                const [data, availableProjects] = await Promise.all([getInterns(), getProjects()])
+                if (!cancelled) {
+                    setInterns(data)
+                    setProjects(availableProjects)
+                }
             } catch (err) {
                 if (!cancelled) setError(err.message)
             }
@@ -30,6 +38,25 @@ function InternManagementPanel() {
             cancelled = true
         }
     }, [])
+
+    async function handleProjectAssignment(intern, projectId) {
+        if (busy) return
+        setBusy(true)
+        setError("")
+        setMessage("")
+        try {
+            await setProjectAssignment(intern.id, projectId)
+            const [data, availableProjects] = await Promise.all([getInterns(), getProjects()])
+            setInterns(data)
+            setProjects(availableProjects)
+            setSelectedProjects({})
+            setMessage(`Project assignment ${projectId === null ? "ended" : "saved"} for ${intern.firstName} ${intern.lastName}.`)
+        } catch (err) {
+            setError(err.message)
+        } finally {
+            setBusy(false)
+        }
+    }
 
     async function handleActivate(intern) {
         if (busy) return
@@ -102,6 +129,7 @@ function InternManagementPanel() {
                     {error}
                 </p>
             )}
+            {message && <p role="status">{message}</p>}
 
             {interns.length === 0 && !error && (
                 <p>No registered interns found.</p>
@@ -114,6 +142,35 @@ function InternManagementPanel() {
                     </h3>
 
                     <p>Email: {intern.email}</p>
+                    <p>Current project: {intern.currentProjectName || "Unassigned"}</p>
+                    {Boolean(intern.internshipId && intern.isEnabled) && (
+                        <div className="intern-project-controls">
+                            <label htmlFor={`project-${intern.id}`}>Project</label>
+                            <select
+                                id={`project-${intern.id}`}
+                                value={selectedProjects[intern.id] ?? intern.currentProjectId ?? ""}
+                                disabled={busy}
+                                onChange={(event) => setSelectedProjects({ ...selectedProjects, [intern.id]: event.target.value })}
+                            >
+                                <option value="">Choose a project</option>
+                                {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
+                            </select>
+                            <button
+                                type="button"
+                                className="intern-button activate-button"
+                                disabled={busy || !selectedProjects[intern.id] || selectedProjects[intern.id] === intern.currentProjectId}
+                                onClick={() => handleProjectAssignment(intern, selectedProjects[intern.id])}
+                            >
+                                {intern.currentProjectId ? "Change Project" : "Assign Project"}
+                            </button>
+                            {intern.currentProjectId && (
+                                <button type="button" className="intern-button deactivate-button" disabled={busy} onClick={() => handleProjectAssignment(intern, null)}>
+                                    End Assignment
+                                </button>
+                            )}
+                            {projects.length === 0 && <p>No active projects available. Create a project first.</p>}
+                        </div>
+                    )}
 
                     <p>
                         Status:{" "}

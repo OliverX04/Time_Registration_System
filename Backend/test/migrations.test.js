@@ -41,6 +41,30 @@ function records(db) {
     return Object.fromEntries(tables.map((table) => [table, db.prepare(`SELECT * FROM ${table} ORDER BY id`).all()]))
 }
 
+test("duplicate active project assignments stop migration without changing history", () => {
+    const db = createLegacyDatabase()
+    try {
+        insertAccount(db, "intern", "intern@example.com")
+        insertAccount(db, "supervisor", "supervisor@example.com", "SUPERVISOR")
+        db.exec(`
+            INSERT INTO internship (id, intern_id, started_at) VALUES ('internship', 'intern', '2026-01-01');
+            INSERT INTO project (id, created_by_user_id, name) VALUES ('project', 'supervisor', 'Project');
+            INSERT INTO project_assignment (id, internship_id, project_id, assigned_at)
+            VALUES ('one', 'internship', 'project', '2026-01-01'), ('two', 'internship', 'project', '2026-01-02');
+        `)
+        const before = records(db)
+        assert.throws(() => runMigrations(db), /Project assignment migration stopped/)
+        assert.deepEqual(records(db), before)
+        db.prepare("UPDATE project_assignment SET ended_at = '2026-01-02' WHERE id = 'one'").run()
+        runMigrations(db)
+        runMigrations(db)
+        assert.throws(() => db.prepare("UPDATE project_assignment SET ended_at = NULL WHERE id = 'one'").run(), /UNIQUE constraint failed/)
+        assert.equal(db.prepare("SELECT COUNT(*) AS count FROM project_assignment").get().count, 2)
+    } finally {
+        db.close()
+    }
+})
+
 test("migration normalizes legacy email while preserving identities, history and existing tasks", () => {
     const db = createLegacyDatabase()
 

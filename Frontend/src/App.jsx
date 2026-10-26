@@ -1,0 +1,126 @@
+import { Routes, Route, Navigate } from "react-router-dom"
+import Register from "./pages/Register.jsx"
+import Login from "./pages/Login.jsx"
+import InternDashboard from "./pages/InternDashboard.jsx"
+import SupervisorDashboard from "./pages/SupervisorDashboard.jsx"
+import Projects from "./pages/Projects.jsx"
+import Tasks from "./pages/Tasks.jsx"
+import AttendanceHistory from "./pages/AttendanceHistory.jsx"
+import Statistics from "./pages/Statistics.jsx"
+import Interns from "./pages/Interns.jsx"
+import ProtectedRoute from "./components/ProtectedRoute.jsx"
+import "./styles/auth.css"
+
+function App() {
+    return (
+        <Routes>
+            <Route
+                path="/register"
+                element={<Register />}
+            />
+
+            <Route
+                path="/login"
+                element={<Login />}
+            />
+
+            <Route
+                path="/intern-dashboard"
+                element={
+                    <ProtectedRoute requiredRole="INTERN">
+                        <InternDashboard />
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/supervisor-dashboard"
+                element={
+                    <ProtectedRoute requiredRole="SUPERVISOR">
+                        <SupervisorDashboard />
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/intern-dashboard/tasks"
+                element={
+                    <ProtectedRoute requiredRole="INTERN">
+                        <Tasks />
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/intern-dashboard/attendance-history"
+                element={
+                    <ProtectedRoute requiredRole="INTERN">
+                        <AttendanceHistory />
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/intern-dashboard/statistics"
+                element={
+                    <ProtectedRoute requiredRole="INTERN">
+                        <Statistics />
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/intern-dashboard/task-time"
+                element={<Navigate to="/intern-dashboard/tasks" replace />}
+            />
+
+            <Route
+                path="/supervisor-dashboard/projects"
+                element={
+                    <ProtectedRoute requiredRole="SUPERVISOR">
+                        <Projects />
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/supervisor-dashboard/interns"
+                element={
+                    <ProtectedRoute requiredRole="SUPERVISOR">
+                        <Interns />
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/supervisor-dashboard/tasks"
+                element={
+                    <ProtectedRoute requiredRole="SUPERVISOR">
+                        <Tasks />
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/supervisor-dashboard/statistics"
+                element={
+                    <ProtectedRoute requiredRole="SUPERVISOR">
+                        <Statistics />
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/supervisor-dashboard/task-assignments"
+                element={<Navigate to="/supervisor-dashboard/tasks" replace />}
+            />
+
+            <Route
+                path="/"
+                element={<Navigate to="/login" />}
+            />
+        </Routes>
+    )
+}
+
+export default App

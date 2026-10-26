@@ -1,0 +1,146 @@
+import { normalizeEmail } from "../validation/accounts.js"
+
+export function runMigrations(db) {
+    db.transaction(() => {
+        normalizeAccountEmails(db)
+        addTaskCreator(db)
+        addProjectArchive(db)
+        addTaskAssignmentNote(db)
+        addTaskAssignmentOwner(db)
+        addActiveProjectAssignmentConstraint(db)
+        addInternStatisticsSettings(db)
+    })()
+}
+
+function addInternStatisticsSettings(db) {
+    const accountColumns = db
+        .prepare("PRAGMA table_info(user_account)")
+        .all()
+        .map((column) => column.name)
+
+    if (!accountColumns.includes("expected_weekly_hours")) {
+        db.exec(`
+            ALTER TABLE user_account
+            ADD COLUMN expected_weekly_hours REAL NOT NULL DEFAULT 37
+            CHECK (expected_weekly_hours > 0 AND expected_weekly_hours <= 168)
+        `)
+    }
+
+    db.exec("UPDATE user_account SET expected_weekly_hours = 37 WHERE expected_weekly_hours IS NULL")
+
+    if (!accountColumns.includes("working_days")) {
+        db.exec(`
+            ALTER TABLE user_account
+            ADD COLUMN working_days TEXT NOT NULL DEFAULT '[1,2,3,4,5]'
+        `)
+    }
+}
+
+function addActiveProjectAssignmentConstraint(db) {
+    const duplicate = db.prepare(`
+        SELECT internship_id FROM project_assignment
+        WHERE ended_at IS NULL
+        GROUP BY internship_id HAVING COUNT(*) > 1
+    `).get()
+
+    if (duplicate) {
+        throw new Error(`Project assignment migration stopped: internship ${duplicate.internship_id} has multiple active assignments. Resolve the conflicting assignments before starting the server.`)
+    }
+
+    db.exec(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_project_assignment_one_active
+        ON project_assignment(internship_id) WHERE ended_at IS NULL
+    `)
+}
+
+function normalizeAccountEmails(db) {
+    const accounts = db.prepare("SELECT id, email FROM user_account").all()
+    const owners = new Map()
+
+    for (const account of accounts) {
+        const email = normalizeEmail(account.email)
+
+        if (owners.has(email)) {
+            throw new Error(`Email normalization stopped: accounts ${owners.get(email)} and ${account.id} share ${email}. Correct the conflicting addresses before starting the server.`)
+        }
+
+        owners.set(email, account.id)
+    }
+
+    const updateEmail = db.prepare("UPDATE user_account SET email = ? WHERE id = ?")
+
+    for (const account of accounts) {
+        const email = normalizeEmail(account.email)
+
+        if (email !== account.email) {
+            updateEmail.run(email, account.id)
+        }
+    }
+
+    db.exec(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_user_account_normalized_email
+        ON user_account(lower(trim(email)))
+    `)
+}
+
+function addTaskCreator(db) {
+    const taskColumns = db
+        .prepare("PRAGMA table_info(task)")
+        .all()
+        .map((column) => column.name)
+
+    if (!taskColumns.includes("created_by_user_id")) {
+        db.exec(`
+            ALTER TABLE task
+            ADD COLUMN created_by_user_id TEXT
+            REFERENCES user_account(id)
+        `)
+    }
+
+    db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_task_created_by_user_id
+        ON task(created_by_user_id)
+    `)
+}
+
+function addProjectArchive(db) {
+    const projectColumns = db
+        .prepare("PRAGMA table_info(project)")
+        .all()
+        .map((column) => column.name)
+
+    if (!projectColumns.includes("archived_at")) {
+        db.exec("ALTER TABLE project ADD COLUMN archived_at TEXT")
+    }
+}
+
+function addTaskAssignmentNote(db) {
+    const assignmentColumns = db
+        .prepare("PRAGMA table_info(task_assignment)")
+        .all()
+        .map((column) => column.name)
+
+    if (!assignmentColumns.includes("intern_note")) {
+        db.exec("ALTER TABLE task_assignment ADD COLUMN intern_note TEXT NOT NULL DEFAULT ''")
+    }
+}
+
+function addTaskAssignmentOwner(db) {
+    const assignmentColumns = db
+        .prepare("PRAGMA table_info(task_assignment)")
+        .all()
+        .map((column) => column.name)
+
+    if (!assignmentColumns.includes("assigned_by_user_id")) {
+        db.exec(`
+            ALTER TABLE task_assignment
+            ADD COLUMN assigned_by_user_id TEXT
+            REFERENCES user_account(id)
+        `)
+    }
+
+    db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_task_assignment_assigned_by_user_id
+        ON task_assignment(assigned_by_user_id)
+    `)
+}

@@ -1,7 +1,7 @@
 import express from "express"
 import db from "../database/db.js"
 import { requireAuth } from "../security/requireAuth.js"
-import { parseStartDate } from "../validation/internshipDates.js"
+import { copenhagenDate, parseStartDate } from "../validation/internshipDates.js"
 
 export const internshipsRouter = express.Router()
 
@@ -216,24 +216,30 @@ internshipsRouter.post("/:internId/activate", requireSupervisor, (req, res) => {
             }
         }
 
-        if (hasStartDate && db.prepare(`
-            SELECT id FROM internship
-            WHERE intern_id = ? AND ended_at IS NOT NULL AND julianday(ended_at) > julianday(?)
-            LIMIT 1
-        `).get(intern.id, startedAt)) {
+        const previousInternship = hasStartDate ? db.prepare(`
+            SELECT ended_at AS endedAt FROM internship
+            WHERE intern_id = ? AND ended_at IS NOT NULL
+            ORDER BY julianday(ended_at) DESC LIMIT 1
+        `).get(intern.id) : null
+
+        if (previousInternship && req.body.startDate < copenhagenDate(previousInternship.endedAt)) {
             return {
                 status: 400,
                 body: {
                     error: "The start date overlaps a previous internship.",
-                    fieldErrors: { startDate: "Choose a start date after the previous internship ended." }
+                    fieldErrors: { startDate: "Choose a start date on or after the day the previous internship ended." }
                 }
             }
         }
 
+        const effectiveStartedAt = previousInternship && Date.parse(previousInternship.endedAt) > Date.parse(startedAt)
+            ? previousInternship.endedAt
+            : startedAt
+
         db.prepare(`
             INSERT INTO internship (intern_id, started_at)
             VALUES (?, ?)
-        `).run(intern.id, startedAt)
+        `).run(intern.id, effectiveStartedAt)
 
         db.prepare(`
             UPDATE user_account

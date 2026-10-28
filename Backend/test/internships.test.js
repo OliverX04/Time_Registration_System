@@ -3,6 +3,7 @@ import assert from "node:assert/strict"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
+import { copenhagenDate } from "../src/validation/internshipDates.js"
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "internships-test-"))
 
@@ -387,7 +388,8 @@ test("Reactivating an intern creates a new internship and preserves history", as
     // Reactivate the same intern
     const secondActivation = await request(
         "POST",
-        "/internships/student4/activate"
+        "/internships/student4/activate",
+        { startDate: copenhagenDate(new Date()) }
     )
 
     assert.equal(secondActivation.status, 201)
@@ -411,6 +413,7 @@ test("Reactivating an intern creates a new internship and preserves history", as
     // The second internship must be active
     assert.equal(internships[1].ended_at, null)
     assert.ok(internships[1].started_at)
+    assert.equal(internships[1].started_at, internships[0].ended_at)
 
     // The intern should be enabled again
     const account = db.prepare(
@@ -420,6 +423,39 @@ test("Reactivating an intern creates a new internship and preserves history", as
     assert.equal(account.is_enabled, 1)
 })
 
+
+test("reactivation uses the latest end on the selected Copenhagen day and rejects earlier days", async () => {
+    addAccount("dated-reactivation", "INTERN")
+    db.prepare("UPDATE user_account SET is_enabled = 0 WHERE id = ?").run("dated-reactivation")
+    const insert = db.prepare(`
+        INSERT INTO internship (id, intern_id, started_at, ended_at, outcome)
+        VALUES (?, 'dated-reactivation', ?, ?, 'COMPLETED')
+    `)
+    insert.run("dated-first", "2020-06-01T22:00:00.000Z", "2020-06-02T08:00:00.000Z")
+    insert.run("dated-latest", "2020-06-02T08:00:00.000Z", "2020-06-02T22:30:00.000Z")
+
+    const rejected = await request("POST", "/internships/dated-reactivation/activate", { startDate: "2020-06-02" })
+    assert.equal(rejected.status, 400)
+    assert.equal(db.prepare("SELECT is_enabled FROM user_account WHERE id = 'dated-reactivation'").get().is_enabled, 0)
+    assert.equal(db.prepare("SELECT COUNT(*) AS count FROM internship WHERE intern_id = 'dated-reactivation'").get().count, 2)
+
+    const accepted = await request("POST", "/internships/dated-reactivation/activate", { startDate: "2020-06-03" })
+    assert.equal(accepted.status, 201)
+    const active = db.prepare("SELECT started_at FROM internship WHERE intern_id = 'dated-reactivation' AND ended_at IS NULL").get()
+    assert.equal(active.started_at, "2020-06-02T22:30:00.000Z")
+})
+
+test("activation after the previous end day retains the selected day's midnight", async () => {
+    addAccount("later-reactivation", "INTERN")
+    db.prepare(`
+        INSERT INTO internship (intern_id, started_at, ended_at, outcome)
+        VALUES ('later-reactivation', '2020-06-01T00:00:00.000Z', '2020-06-02T12:00:00.000Z', 'COMPLETED')
+    `).run()
+    const result = await request("POST", "/internships/later-reactivation/activate", { startDate: "2020-06-04" })
+    assert.equal(result.status, 201)
+    const active = db.prepare("SELECT started_at FROM internship WHERE intern_id = 'later-reactivation' AND ended_at IS NULL").get()
+    assert.equal(active.started_at, "2020-06-03T22:00:00.000Z")
+})
 
 test("Interns cannot activate or deactivate other interns", async () => {
     // Create a student awaiting activation

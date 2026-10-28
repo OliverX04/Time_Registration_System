@@ -47,6 +47,12 @@ function AppLayout({ children }) {
                         </NavLink>
                     )}
 
+                    {isSupervisor && (
+                        <NavLink className="sidebar-link" to={`${homePath}/attendance`}>
+                            Attendance
+                        </NavLink>
+                    )}
+
                     <NavLink className="sidebar-link" to={`${homePath}/statistics`}>
                         Statistics
                     </NavLink>

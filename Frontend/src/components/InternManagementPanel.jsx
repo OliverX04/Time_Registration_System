@@ -1,6 +1,6 @@
 import "../styles/internManagement.css"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
     getInterns,
     activateIntern,
@@ -22,6 +22,9 @@ function InternManagementPanel() {
     const [page, setPage] = useState(1)
     const [deactivationCandidate, setDeactivationCandidate] = useState(null)
     const [deactivationOutcome, setDeactivationOutcome] = useState("COMPLETED")
+    const [activationCandidate, setActivationCandidate] = useState(null)
+    const [activationStartDate, setActivationStartDate] = useState("")
+    const [activationError, setActivationError] = useState("")
 
     const filteredInterns = useMemo(() => {
         const normalizedSearch = search.trim().toLocaleLowerCase()
@@ -88,23 +91,31 @@ function InternManagementPanel() {
         }
     }
 
-    async function handleActivate(intern) {
+    function handleActivate(intern) {
         if (busy) return
+        setError("")
+        setMessage("")
+        setActivationError("")
+        setActivationStartDate(todayDate())
+        setActivationCandidate(intern)
+    }
 
-        const confirmed = window.confirm(
-            `Activate ${intern.firstName} ${intern.lastName}?`
-        )
-
-        if (!confirmed) return
+    async function confirmActivate(event) {
+        event.preventDefault()
+        if (busy || !activationCandidate) return
 
         setBusy(true)
-        setError("")
-
+        setActivationError("")
+        let activated = false
         try {
-            await activateIntern(intern.id)
+            await activateIntern(activationCandidate.id, activationStartDate)
+            activated = true
+            setActivationCandidate(null)
+            setMessage(`${activationCandidate.firstName} ${activationCandidate.lastName} was activated.`)
             setInterns(await getInterns())
         } catch (err) {
-            setError(err.message)
+            if (activated) setError("The Intern was activated, but the list could not be refreshed. Reload the page to see the updated list.")
+            else setActivationError(err.fieldErrors?.startDate || err.message)
         } finally {
             setBusy(false)
         }
@@ -182,6 +193,16 @@ function InternManagementPanel() {
                 </p>
             )}
             {message && <p role="status">{message}</p>}
+
+            {activationCandidate && <ActivationDialog
+                intern={activationCandidate}
+                startDate={activationStartDate}
+                setStartDate={setActivationStartDate}
+                busy={busy}
+                error={activationError}
+                onSubmit={confirmActivate}
+                onCancel={() => setActivationCandidate(null)}
+            />}
 
             {deactivationCandidate && (
                 <div className="intern-dialog-backdrop">
@@ -319,6 +340,44 @@ function InternManagementPanel() {
             )}
         </section>
     )
+}
+
+function ActivationDialog({ intern, startDate, setStartDate, busy, error, onSubmit, onCancel }) {
+    const dialog = useRef(null)
+
+    useEffect(() => {
+        dialog.current.showModal()
+    }, [])
+
+    return (
+        <dialog className="intern-activation-dialog" ref={dialog} aria-labelledby="intern-activation-title"
+            onCancel={(event) => { event.preventDefault(); if (!busy) onCancel() }}>
+            <form onSubmit={onSubmit}>
+                <h3 id="intern-activation-title">Activate {intern.firstName} {intern.lastName}?</h3>
+                <p>Choose the first day of their internship.</p>
+                <label htmlFor="intern-activation-start">Internship start date</label>
+                <input id="intern-activation-start" type="date" value={startDate} max={todayDate()} required disabled={busy}
+                    aria-describedby="intern-activation-hint" aria-invalid={Boolean(error)}
+                    onChange={(event) => setStartDate(event.target.value)} />
+                <small id="intern-activation-hint">Use the actual first day, even if it was earlier this week. Attendance can then be added for the missed days.</small>
+                {error && <p className="intern-error-message" role="alert">{error}</p>}
+                <div className="intern-deactivation-actions">
+                    <button type="button" className="intern-dialog-cancel" disabled={busy} onClick={onCancel}>Cancel</button>
+                    <button type="submit" className="intern-button activate-button" disabled={busy}>
+                        {busy ? "Activating..." : "Activate intern"}
+                    </button>
+                </div>
+            </form>
+        </dialog>
+    )
+}
+
+function todayDate() {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Europe/Copenhagen", year: "numeric", month: "2-digit", day: "2-digit"
+    }).formatToParts(new Date())
+    const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]))
+    return `${values.year}-${values.month}-${values.day}`
 }
 
 function formatDate(value) {

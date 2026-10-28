@@ -1,6 +1,7 @@
 import express from "express"
 import db from "../database/db.js"
 import { requireAuth } from "../security/requireAuth.js"
+import { copenhagenDate, parseStartDate } from "../validation/internshipDates.js"
 
 export const internshipsRouter = express.Router()
 
@@ -178,6 +179,16 @@ internshipsRouter.get("/", requireSupervisor, (req, res) => {
 })
 
 internshipsRouter.post("/:internId/activate", requireSupervisor, (req, res) => {
+    const hasStartDate = req.body?.startDate !== undefined
+    const startedAt = hasStartDate ? parseStartDate(req.body.startDate) : new Date().toISOString()
+
+    if (!startedAt) {
+        return res.status(400).send({
+            error: "Please choose a valid internship start date.",
+            fieldErrors: { startDate: "Start date must be a real date on or before today." }
+        })
+    }
+
     const result = db.transaction(() => {
         const intern = db.prepare(`
             SELECT id, role
@@ -205,10 +216,30 @@ internshipsRouter.post("/:internId/activate", requireSupervisor, (req, res) => {
             }
         }
 
+        const previousInternship = hasStartDate ? db.prepare(`
+            SELECT ended_at AS endedAt FROM internship
+            WHERE intern_id = ? AND ended_at IS NOT NULL
+            ORDER BY julianday(ended_at) DESC LIMIT 1
+        `).get(intern.id) : null
+
+        if (previousInternship && req.body.startDate < copenhagenDate(previousInternship.endedAt)) {
+            return {
+                status: 400,
+                body: {
+                    error: "The start date overlaps a previous internship.",
+                    fieldErrors: { startDate: "Choose a start date on or after the day the previous internship ended." }
+                }
+            }
+        }
+
+        const effectiveStartedAt = previousInternship && Date.parse(previousInternship.endedAt) > Date.parse(startedAt)
+            ? previousInternship.endedAt
+            : startedAt
+
         db.prepare(`
             INSERT INTO internship (intern_id, started_at)
             VALUES (?, ?)
-        `).run(intern.id, new Date().toISOString())
+        `).run(intern.id, effectiveStartedAt)
 
         db.prepare(`
             UPDATE user_account

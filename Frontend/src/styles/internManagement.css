@@ -59,6 +59,59 @@
     margin-top: 8px;
 }
 
+.intern-activation-dialog {
+    box-sizing: border-box;
+    width: min(calc(100% - 40px), 440px);
+    padding: 0;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    color: #1f2937;
+    background: white;
+    box-shadow: 0 20px 60px rgb(15 23 42 / 24%);
+}
+
+.intern-activation-dialog::backdrop {
+    background: rgb(15 23 42 / 48%);
+}
+
+.intern-activation-dialog form {
+    display: grid;
+    gap: 12px;
+    padding: 24px;
+}
+
+.intern-activation-dialog h3,
+.intern-activation-dialog p {
+    margin: 0;
+}
+
+.intern-activation-dialog p,
+.intern-activation-dialog small {
+    color: #64748b;
+    line-height: 1.5;
+}
+
+.intern-activation-dialog label {
+    color: #374151;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.intern-activation-dialog input {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 40px;
+    padding: 8px 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: white;
+    font: inherit;
+}
+
+.intern-activation-dialog .intern-error-message {
+    color: #b91c1c;
+}
+
 .intern-dialog-cancel {
     padding: 8px 14px;
     border: 1px solid #cbd5e1;

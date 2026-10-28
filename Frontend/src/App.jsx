@@ -6,6 +6,7 @@ import SupervisorDashboard from "./pages/SupervisorDashboard.jsx"
 import Projects from "./pages/Projects.jsx"
 import Tasks from "./pages/Tasks.jsx"
 import AttendanceHistory from "./pages/AttendanceHistory.jsx"
+import AttendanceManagement from "./pages/AttendanceManagement.jsx"
 import Statistics from "./pages/Statistics.jsx"
 import Interns from "./pages/Interns.jsx"
 import ProtectedRoute from "./components/ProtectedRoute.jsx"
@@ -88,6 +89,15 @@ function App() {
                 element={
                     <ProtectedRoute requiredRole="SUPERVISOR">
                         <Interns />
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/supervisor-dashboard/attendance"
+                element={
+                    <ProtectedRoute requiredRole="SUPERVISOR">
+                        <AttendanceManagement />
                     </ProtectedRoute>
                 }
             />

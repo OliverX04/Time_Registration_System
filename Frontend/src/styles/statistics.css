@@ -253,6 +253,17 @@
     font-size: 13px;
 }
 
+.statistics-section .statistics-task-time-table th:last-child,
+.statistics-section .statistics-task-time-table td:last-child {
+    width: 120px;
+    text-align: right;
+}
+
+.statistics-section .statistics-task-time-table tbody th {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
 .statistics-section tbody th {
     color: #374151;
     font-weight: 600;
@@ -272,7 +283,7 @@
 
 .statistics-breakdowns {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
     gap: 8px 24px;
     margin-top: 24px;
 }
@@ -310,4 +321,88 @@
     .statistics-intern-breakdown {
         grid-column: auto;
     }
+}
+
+.statistics-switches { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+.statistics-switches button { padding: 10px 16px; border: 1px solid #cbd5e1; border-radius: 6px; background: #f9fafb; color: #334155; font: inherit; cursor: pointer; }
+.statistics-switches button[aria-pressed="true"] { border-color: #2563eb; background: #2563eb; color: #fff; }
+
+.statistics-row-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin-top: 14px;
+    color: #64748b;
+    font-size: 14px;
+}
+
+.statistics-row-controls button {
+    padding: 8px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #f9fafb;
+    color: #334155;
+    font: inherit;
+    cursor: pointer;
+}
+
+.statistics-drilldown {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.statistics-drilldown:hover {
+    color: #1d4ed8;
+}
+
+.presence-schedule .presence-schedule-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 12px;
+    margin: 0;
+    padding: 12px;
+}
+
+.presence-schedule-form > div:first-child {
+    flex-basis: 100%;
+}
+
+.presence-schedule-form .statistics-filter-field {
+    flex: 0 1 130px;
+    min-width: 0;
+}
+
+.presence-schedule-form .statistics-filter-field input {
+    width: 100%;
+    min-width: 0;
+}
+
+.presence-schedule-form .statistics-working-days {
+    flex: 1 1 300px;
+}
+
+.presence-schedule-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.statistics-collapsible > summary {
+    margin-bottom: 12px;
+    color: #1f2937;
+    font-size: 18px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.statistics-collapsible > summary:hover {
+    color: #1d4ed8;
 }

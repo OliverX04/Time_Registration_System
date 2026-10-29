@@ -278,3 +278,18 @@ test("invalid ranges and unknown Supervisor filters return useful errors", async
     assert.equal((await request("/statistics?internId=missing", supervisorToken)).status, 404)
     assert.equal((await request("/statistics?projectId=missing", supervisorToken)).status, 404)
 })
+
+
+test("task drill-down filters task time and preserves Intern scope", async () => {
+    const response = await request("/statistics?taskId=task&timeZone=UTC", supervisorToken)
+    assert.equal(response.status, 200)
+    const data = await response.json()
+    assert.equal(data.filters.taskId, "task")
+    assert.deepEqual(data.byTask.map((task) => task.id), ["task"])
+    assert.equal(data.totals.taskDurationMs, 2 * 60 * 60 * 1000)
+    const ownResponse = await request("/statistics/me?taskId=other-task&timeZone=UTC", internToken)
+    assert.equal(ownResponse.status, 200)
+    const own = await ownResponse.json()
+    assert.equal(own.totals.taskDurationMs, 0)
+    assert.deepEqual(own.byTask, [])
+})

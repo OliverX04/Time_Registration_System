@@ -48,10 +48,13 @@ function readStatistics(query, filters) {
     const endDate = typeof query.endDate === "string" && query.endDate ? query.endDate : null
     const timeZone = typeof query.timeZone === "string" && query.timeZone ? query.timeZone : "UTC"
 
+    const projectId = typeof query.projectId === "string" && query.projectId ? query.projectId : null
+    const taskId = typeof query.taskId === "string" && query.taskId ? query.taskId : null
+
     try {
         return {
             status: 200,
-            body: getStatistics({ ...filters, startDate, endDate, timeZone })
+            body: getStatistics({ ...filters, projectId, taskId, startDate, endDate, timeZone })
         }
     } catch (error) {
         const status = error instanceof TypeError || error instanceof RangeError ? 400 : 500

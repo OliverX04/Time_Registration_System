@@ -1,6 +1,7 @@
+import PresenceSchedule from "./PresenceSchedule.jsx"
 import "../styles/internManagement.css"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { Fragment, useEffect, useMemo, useRef, useState } from "react"
 import {
     getInterns,
     activateIntern,
@@ -10,6 +11,7 @@ import {
 import { getProjects } from "../services/projectService.js"
 
 function InternManagementPanel() {
+    const [scheduleIntern, setScheduleIntern] = useState(null)
     const pageSize = 20
     const [interns, setInterns] = useState([])
     const [error, setError] = useState("")
@@ -194,6 +196,8 @@ function InternManagementPanel() {
             )}
             {message && <p role="status">{message}</p>}
 
+
+
             {activationCandidate && <ActivationDialog
                 intern={activationCandidate}
                 startDate={activationStartDate}
@@ -262,7 +266,8 @@ function InternManagementPanel() {
                             </thead>
                             <tbody>
                                 {visibleInterns.map((intern) => (
-                                    <tr key={intern.id}>
+                                    <Fragment key={intern.id}>
+                                    <tr>
                                         <th scope="row">
                                             <strong>{intern.firstName} {intern.lastName}</strong>
                                             <span>{intern.email}</span>
@@ -311,6 +316,7 @@ function InternManagementPanel() {
                                             )}
                                         </td>
                                         <td>
+                                            {Boolean(intern.isEnabled) && <button type="button" className="intern-button activate-button" disabled={busy} onClick={() => setScheduleIntern(intern)}>Schedule</button>}
                                             {intern.internshipId ? (
                                                 <button type="button" className="intern-button deactivate-button" disabled={busy} onClick={() => handleDeactivate(intern)}>
                                                     Deactivate
@@ -322,6 +328,14 @@ function InternManagementPanel() {
                                             )}
                                         </td>
                                     </tr>
+                                    {scheduleIntern?.id === intern.id && <tr className="intern-schedule-row"><td colSpan={4}>
+            {scheduleIntern && <PresenceSchedule key={scheduleIntern.id} intern={scheduleIntern} onCancel={() => setScheduleIntern(null)} onSaved={async () => {
+                setInterns(await getInterns())
+                setScheduleIntern(null)
+                setMessage("Presence schedule saved.")
+            }} />}
+                                    </td></tr>}
+                                    </Fragment>
                                 ))}
                             </tbody>
                         </table>

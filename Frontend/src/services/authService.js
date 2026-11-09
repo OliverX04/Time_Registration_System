@@ -61,6 +61,21 @@ export function getToken() {
     return localStorage.getItem("jwt")
 }
 
+export async function changePassword(currentPassword, newPassword) {
+    const response = await fetch(`${API_URL}/account/password`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${getToken()}`
+        },
+        body: JSON.stringify({ currentPassword, newPassword })
+    })
+    const data = await response.json()
+    if (!response.ok) {
+        throw new Error(data.error || "Unable to change password.")
+    }
+}
+
 export function getCurrentUser() {
     const user = localStorage.getItem("user")
 

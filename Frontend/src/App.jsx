@@ -9,6 +9,7 @@ import AttendanceHistory from "./pages/AttendanceHistory.jsx"
 import AttendanceManagement from "./pages/AttendanceManagement.jsx"
 import Statistics from "./pages/Statistics.jsx"
 import Interns from "./pages/Interns.jsx"
+import ChangePassword from "./pages/ChangePassword.jsx"
 import ProtectedRoute from "./components/ProtectedRoute.jsx"
 import "./styles/auth.css"
 
@@ -23,6 +24,15 @@ function App() {
             <Route
                 path="/login"
                 element={<Login />}
+            />
+
+            <Route
+                path="/change-password"
+                element={
+                    <ProtectedRoute>
+                        <ChangePassword />
+                    </ProtectedRoute>
+                }
             />
 
             <Route

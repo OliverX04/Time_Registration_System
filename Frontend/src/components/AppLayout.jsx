@@ -61,6 +61,10 @@ function AppLayout({ children }) {
                         Tasks
                     </NavLink>
 
+                    <NavLink className="sidebar-link" to="/change-password">
+                        Change password
+                    </NavLink>
+
                     <button
                         className="sidebar-link sidebar-logout"
                         type="button"

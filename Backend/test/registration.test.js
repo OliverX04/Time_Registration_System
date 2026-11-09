@@ -87,6 +87,34 @@ test("registration trims names, normalizes email and always creates an Intern wi
     assert.equal(db.prepare("SELECT COUNT(*) AS count FROM internship WHERE intern_id = ?").get(account.id).count, 0)
 })
 
+test("enabled users can change only their own password with the current password", async () => {
+    const email = "password-change@example.com"
+    await request("/signup", registration({ email }))
+    db.prepare("UPDATE user_account SET is_enabled = 1 WHERE email = ?").run(email)
+    const login = await request("/login", { email, password })
+    assert.equal(login.response.status, 200)
+    const authorization = login.response.headers.get("Authorization")
+    const newPassword = "another-password-for-testing"
+    const change = (input, token = authorization) => fetch(`${baseUrl}/account/password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token && { Authorization: token }) },
+        body: JSON.stringify({ currentPassword: password, newPassword, ...input })
+    })
+
+    assert.equal((await change({}, null)).status, 401)
+    assert.equal((await change({ currentPassword: "incorrect" })).status, 400)
+    assert.equal((await change({ newPassword: "é".repeat(37) })).status, 400)
+    const result = await change({ userId: "legacy-intern" })
+    assert.equal(result.status, 200)
+    assert.equal((await request("/login", { email, password })).response.status, 401)
+    assert.equal((await request("/login", { email, password: newPassword })).response.status, 200)
+    const legacy = db.prepare("SELECT password_hash FROM user_account WHERE id = ?").get("legacy-intern")
+    assert.equal(await comparePassword("oldpass", legacy.password_hash), true)
+
+    db.prepare("UPDATE user_account SET is_enabled = 0 WHERE email = ?").run(email)
+    assert.equal((await change({ currentPassword: newPassword, newPassword: password })).status, 403)
+})
+
 test("email case and whitespace variants cannot create another account", async () => {
     const result = await request("/signup", registration({ email: " PERSON@EXAMPLE.COM " }))
     assert.equal(result.response.status, 409)

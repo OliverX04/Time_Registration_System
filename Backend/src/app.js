@@ -2,6 +2,7 @@ import express from "express"
 import cors from "cors"
 import { signupRouter } from "./routes/signup.js"
 import { loginRouter } from "./routes/login.js"
+import { accountRouter } from "./routes/account.js"
 import { projectsRouter } from "./routes/projects.js"
 import { attendanceRouter } from "./routes/attendance.js"
 import { internshipsRouter } from "./routes/internships.js"
@@ -15,6 +16,7 @@ app.use(express.json())
 
 app.use("/signup", signupRouter)
 app.use("/login", loginRouter)
+app.use("/account", accountRouter)
 app.use("/projects", projectsRouter)
 app.use("/attendance", attendanceRouter)
 app.use("/internships", internshipsRouter)

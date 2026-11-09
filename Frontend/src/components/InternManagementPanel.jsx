@@ -267,74 +267,78 @@ function InternManagementPanel() {
                             <tbody>
                                 {visibleInterns.map((intern) => (
                                     <Fragment key={intern.id}>
-                                    <tr>
-                                        <th scope="row">
-                                            <strong>{intern.firstName} {intern.lastName}</strong>
-                                            <span>{intern.email}</span>
-                                        </th>
-                                        <td>
-                                            <span>{intern.currentProjectName || intern.lastProjectName || "Unassigned"}</span>
-                                            {Boolean(intern.internshipId && intern.isEnabled) && (
-                                                <div className="intern-project-controls">
-                                                    <select
-                                                        aria-label={`Project for ${intern.firstName} ${intern.lastName}`}
-                                                        value={selectedProjects[intern.id] ?? intern.currentProjectId ?? ""}
-                                                        disabled={busy}
-                                                        onChange={(event) => setSelectedProjects((current) => ({ ...current, [intern.id]: event.target.value }))}
-                                                    >
-                                                        <option value="">Choose a project</option>
-                                                        {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
-                                                    </select>
-                                                    <button
-                                                        type="button"
-                                                        className="intern-button activate-button"
-                                                        disabled={busy || !selectedProjects[intern.id] || selectedProjects[intern.id] === intern.currentProjectId}
-                                                        onClick={() => handleProjectAssignment(intern, selectedProjects[intern.id])}
-                                                    >
-                                                        {intern.currentProjectId ? "Change" : "Assign"}
-                                                    </button>
-                                                    {intern.currentProjectId && (
-                                                        <button type="button" className="intern-button deactivate-button" disabled={busy} onClick={() => handleProjectAssignment(intern, null)}>
-                                                            End
+                                        <tr>
+                                            <th scope="row">
+                                                <strong>{intern.firstName} {intern.lastName}</strong>
+                                                <span>{intern.email}</span>
+                                            </th>
+                                            <td>
+                                                <span>{intern.currentProjectName || "Unassigned"}</span>
+                                                {Boolean(intern.internshipId && intern.isEnabled) && (
+                                                    <div className="intern-project-controls">
+                                                        <select
+                                                            aria-label={`Project for ${intern.firstName} ${intern.lastName}`}
+                                                            value={selectedProjects[intern.id] ?? intern.currentProjectId ?? ""}
+                                                            disabled={busy}
+                                                            onChange={(event) => setSelectedProjects((current) => ({ ...current, [intern.id]: event.target.value }))}
+                                                        >
+                                                            <option value="">Unassigned</option>
+                                                            {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
+                                                        </select>
+                                                        <button
+                                                            type="button"
+                                                            className="intern-button activate-button"
+                                                            disabled={
+                                                                busy ||
+                                                                (selectedProjects[intern.id] ?? intern.currentProjectId ?? "") ===
+                                                                (intern.currentProjectId ?? "")
+                                                            }
+                                                            onClick={() =>
+                                                                handleProjectAssignment(
+                                                                    intern,
+                                                                    (selectedProjects[intern.id] ?? intern.currentProjectId ?? "") || null
+                                                                )
+                                                            }
+                                                        >
+                                                            Save
                                                         </button>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </td>
-                                        <td>
-                                            <span className={intern.internshipId ? "intern-active" : intern.isEnabled ? "intern-awaiting" : "intern-inactive"}>
-                                                {intern.internshipId
-                                                    ? "Active"
-                                                    : intern.isEnabled
-                                                        ? "Awaiting activation"
-                                                        : intern.lastOutcome
-                                                            ? `Former · ${intern.lastOutcome.toLowerCase()}`
-                                                            : "Inactive"}
-                                            </span>
-                                            {!intern.internshipId && intern.lastEndedAt && (
-                                                <div>{formatDate(intern.lastEndedAt)}</div>
-                                            )}
-                                        </td>
-                                        <td>
-                                            {Boolean(intern.isEnabled) && <button type="button" className="intern-button activate-button" disabled={busy} onClick={() => setScheduleIntern(intern)}>Schedule</button>}
-                                            {intern.internshipId ? (
-                                                <button type="button" className="intern-button deactivate-button" disabled={busy} onClick={() => handleDeactivate(intern)}>
-                                                    Deactivate
-                                                </button>
-                                            ) : (
-                                                <button type="button" className="intern-button activate-button" disabled={busy} onClick={() => handleActivate(intern)}>
-                                                    Activate
-                                                </button>
-                                            )}
-                                        </td>
-                                    </tr>
-                                    {scheduleIntern?.id === intern.id && <tr className="intern-schedule-row"><td colSpan={4}>
-            {scheduleIntern && <PresenceSchedule key={scheduleIntern.id} intern={scheduleIntern} onCancel={() => setScheduleIntern(null)} onSaved={async () => {
-                setInterns(await getInterns())
-                setScheduleIntern(null)
-                setMessage("Presence schedule saved.")
-            }} />}
-                                    </td></tr>}
+                                                    </div>
+                                                )}
+                                            </td>
+                                            <td>
+                                                <span className={intern.internshipId ? "intern-active" : intern.isEnabled ? "intern-awaiting" : "intern-inactive"}>
+                                                    {intern.internshipId
+                                                        ? "Active"
+                                                        : intern.isEnabled
+                                                            ? "Awaiting activation"
+                                                            : intern.lastOutcome
+                                                                ? `Former · ${intern.lastOutcome.toLowerCase()}`
+                                                                : "Inactive"}
+                                                </span>
+                                                {!intern.internshipId && intern.lastEndedAt && (
+                                                    <div>{formatDate(intern.lastEndedAt)}</div>
+                                                )}
+                                            </td>
+                                            <td>
+                                                {Boolean(intern.isEnabled) && <button type="button" className="intern-button activate-button" disabled={busy} onClick={() => setScheduleIntern(intern)}>Schedule</button>}
+                                                {intern.internshipId ? (
+                                                    <button type="button" className="intern-button deactivate-button" disabled={busy} onClick={() => handleDeactivate(intern)}>
+                                                        Deactivate
+                                                    </button>
+                                                ) : (
+                                                    <button type="button" className="intern-button activate-button" disabled={busy} onClick={() => handleActivate(intern)}>
+                                                        Activate
+                                                    </button>
+                                                )}
+                                            </td>
+                                        </tr>
+                                        {scheduleIntern?.id === intern.id && <tr className="intern-schedule-row"><td colSpan={4}>
+                                            {scheduleIntern && <PresenceSchedule key={scheduleIntern.id} intern={scheduleIntern} onCancel={() => setScheduleIntern(null)} onSaved={async () => {
+                                                setInterns(await getInterns())
+                                                setScheduleIntern(null)
+                                                setMessage("Presence schedule saved.")
+                                            }} />}
+                                        </td></tr>}
                                     </Fragment>
                                 ))}
                             </tbody>

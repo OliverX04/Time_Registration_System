@@ -1,19 +1,33 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import AppLayout from "../components/AppLayout.jsx"
-import { changePassword, logoutUser } from "../services/authService.js"
+import { changePassword, getToken, logoutUser } from "../services/authService.js"
 
 function ChangePassword() {
+    const [formToken] = useState(getToken)
     const [busy, setBusy] = useState(false)
     const [error, setError] = useState("")
+    const [notice, setNotice] = useState("")
+    const mounted = useRef(false)
     const navigate = useNavigate()
+
+    useEffect(() => {
+        mounted.current = true
+        return () => { mounted.current = false }
+    }, [])
 
     async function handleSubmit(event) {
         event.preventDefault()
         if (busy) return
 
-        const { currentPassword, newPassword, confirmPassword } = Object.fromEntries(new FormData(event.currentTarget))
         setError("")
+        setNotice("")
+        if (!formToken || getToken() !== formToken) {
+            setError("Your login changed. Reload this page before changing your password.")
+            return
+        }
+
+        const { currentPassword, newPassword, confirmPassword } = Object.fromEntries(new FormData(event.currentTarget))
         if (newPassword !== confirmPassword) {
             setError("The new passwords do not match.")
             return
@@ -21,13 +35,22 @@ function ChangePassword() {
 
         setBusy(true)
         try {
-            await changePassword(currentPassword, newPassword)
+            await changePassword(currentPassword, newPassword, formToken)
+            if (getToken() !== formToken) {
+                if (mounted.current) {
+                    setNotice("Password changed for the previous login. Reload this page to continue.")
+                }
+                return
+            }
+
             logoutUser()
-            navigate("/login", { replace: true, state: { passwordChanged: true } })
+            if (mounted.current) {
+                navigate("/login", { replace: true, state: { passwordChanged: true } })
+            }
         } catch (err) {
-            setError(err.message)
+            if (mounted.current) setError(err.message)
         } finally {
-            setBusy(false)
+            if (mounted.current) setBusy(false)
         }
     }
 
@@ -52,6 +75,7 @@ function ChangePassword() {
                             autoComplete="new-password" required disabled={busy} />
                     </div>
                     {error && <p className="error-message" role="alert">{error}</p>}
+                    {notice && <p className="success-message" role="status">{notice}</p>}
                     <button className="auth-button" type="submit" disabled={busy}>
                         {busy ? "Saving..." : "Change password"}
                     </button>

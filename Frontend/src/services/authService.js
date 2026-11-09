@@ -61,12 +61,12 @@ export function getToken() {
     return localStorage.getItem("jwt")
 }
 
-export async function changePassword(currentPassword, newPassword) {
+export async function changePassword(currentPassword, newPassword, token) {
     const response = await fetch(`${API_URL}/account/password`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${getToken()}`
+            Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({ currentPassword, newPassword })
     })

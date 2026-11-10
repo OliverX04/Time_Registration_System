@@ -7,6 +7,57 @@ export const attendanceRouter = express.Router()
 
 attendanceRouter.use(requireAuth)
 
+attendanceRouter.get("/management/correction-requests", requireSupervisor, (req, res) => {
+    res.send({ requests: listCorrections() })
+})
+
+attendanceRouter.post("/management/correction-requests/:id/review", requireSupervisor, (req, res) => {
+    const { decision } = req.body ?? {}
+    if (decision !== "APPROVED" && decision !== "REJECTED") {
+        return res.status(400).send({ error: "Choose approve or reject." })
+    }
+
+    const result = db.transaction(() => {
+        const request = db.prepare(`
+            SELECT r.*, i.intern_id AS internId, i.started_at AS startedAt, i.ended_at AS endedAt
+            FROM attendance_correction_request r JOIN internship i ON i.id = r.internship_id
+            WHERE r.id = ?
+        `).get(req.params.id)
+        if (!request) return { status: 404, body: { error: "Correction request not found." } }
+        if (request.status !== "PENDING") {
+            return { status: 409, body: { error: "This request has already been reviewed." } }
+        }
+
+        if (decision === "APPROVED") {
+            const values = { checkedInAt: request.proposed_in, checkedOutAt: request.proposed_out }
+            if (request.session_id) {
+                const session = findManagedSession(request.session_id)
+                if (!session || !matchesOriginal(session, {
+                    expectedCheckedInAt: request.original_in,
+                    expectedCheckedOutAt: request.original_out
+                })) return changedSession()
+            }
+            const problem = checkSession(request, values, request.session_id ?? "")
+            if (problem) return problem
+
+            if (request.session_id) {
+                db.prepare("UPDATE attendance_session SET checked_in_at = ?, checked_out_at = ? WHERE id = ?")
+                    .run(values.checkedInAt, values.checkedOutAt, request.session_id)
+            } else {
+                db.prepare("INSERT INTO attendance_session (internship_id, checked_in_at, checked_out_at) VALUES (?, ?, ?)")
+                    .run(request.internship_id, values.checkedInAt, values.checkedOutAt)
+            }
+        }
+
+        db.prepare(`
+            UPDATE attendance_correction_request SET status = ?, reviewed_by = ?, reviewed_at = ? WHERE id = ?
+        `).run(decision, req.user.id, new Date().toISOString(), request.id)
+        return { status: 200, body: { status: decision } }
+    }).immediate()
+
+    res.status(result.status).send(result.body)
+})
+
 attendanceRouter.get("/management/interns/:internId", requireSupervisor, (req, res) => {
     const intern = findIntern(req.params.internId)
 
@@ -100,7 +151,56 @@ attendanceRouter.use(requireIntern)
 
 attendanceRouter.get("/history", (req, res) => {
     const sessions = findSessionsForIntern(req.user.id)
-    res.send({ sessions })
+    const internships = db.prepare(`
+        SELECT id, started_at AS startedAt, ended_at AS endedAt FROM internship
+        WHERE intern_id = ? ORDER BY started_at DESC
+    `).all(req.user.id)
+    res.send({ sessions, internships, requests: listCorrections(req.user.id) })
+})
+
+attendanceRouter.post("/correction-requests", (req, res) => {
+    const { values, fieldErrors } = validateSession(req.body)
+    const { sessionId, internshipId, reason } = req.body ?? {}
+    if (!values.checkedOutAt) fieldErrors.checkedOutAt = "Enter a valid check-out date and time."
+    if (typeof reason !== "string" || !reason.trim() || reason.trim().length > 1000) {
+        fieldErrors.reason = "Enter a reason of at most 1000 characters."
+    }
+    if (typeof internshipId !== "string" || (sessionId != null && typeof sessionId !== "string")) {
+        fieldErrors.internshipId = "Choose a valid attendance record or internship."
+    }
+    if (Object.keys(fieldErrors).length) {
+        return res.status(400).send({ error: "Please correct the request fields.", fieldErrors })
+    }
+
+    const result = db.transaction(() => {
+        const internship = db.prepare(`
+            SELECT id, intern_id AS internId, started_at AS startedAt, ended_at AS endedAt
+            FROM internship WHERE id = ? AND intern_id = ?
+        `).get(internshipId, req.user.id)
+        const session = sessionId == null ? null : findSession(sessionId)
+        if (!internship || (sessionId != null && session?.internshipId !== internship.id)) {
+            return { status: 404, body: { error: "Attendance record or internship not found." } }
+        }
+        if (session && !matchesOriginal(session, req.body)) return changedSession()
+        const pending = db.prepare(`
+            SELECT id FROM attendance_correction_request
+            WHERE internship_id = ? AND status = 'PENDING'
+                AND (session_id = ? OR (session_id IS NULL AND ? IS NULL AND proposed_in = ? AND proposed_out = ?))
+        `).get(internship.id, sessionId ?? null, sessionId ?? null, values.checkedInAt, values.checkedOutAt)
+        if (pending) return { status: 409, body: { error: "A correction request is already pending." } }
+        const problem = checkSession(internship, values, session?.id)
+        if (problem) return problem
+
+        const { id } = db.prepare(`
+            INSERT INTO attendance_correction_request (
+                internship_id, session_id, original_in, original_out, proposed_in, proposed_out, reason
+            ) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id
+        `).get(internship.id, session?.id ?? null, session?.checkedInAt ?? null, session?.checkedOutAt ?? null,
+            values.checkedInAt, values.checkedOutAt, reason.trim())
+        return { status: 201, body: { id } }
+    }).immediate()
+
+    res.status(result.status).send(result.body)
 })
 
 attendanceRouter.get("/status", (req, res) => {
@@ -216,6 +316,19 @@ function findIntern(userId) {
         SELECT id, first_name AS firstName, last_name AS lastName, email
         FROM user_account WHERE id = ? AND role = 'INTERN'
     `).get(userId)
+}
+
+function listCorrections(internId = null) {
+    return db.prepare(`
+        SELECT r.id, r.session_id AS sessionId, r.original_in AS originalIn, r.original_out AS originalOut,
+            r.proposed_in AS proposedIn, r.proposed_out AS proposedOut, r.reason, r.status,
+            r.created_at AS createdAt, u.first_name AS firstName, u.last_name AS lastName, u.email
+        FROM attendance_correction_request r
+        JOIN internship i ON i.id = r.internship_id
+        JOIN user_account u ON u.id = i.intern_id
+        WHERE (? IS NULL AND r.status = 'PENDING') OR i.intern_id = ?
+        ORDER BY r.created_at DESC, r.id DESC
+    `).all(internId, internId)
 }
 
 function findManagedSession(sessionId) {

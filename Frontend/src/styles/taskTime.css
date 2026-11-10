@@ -136,6 +136,10 @@
     font-size: 14px;
 }
 
+.task-history-entry > .task-time-correction {
+    grid-column: 1 / -1;
+}
+
 .task-history-entry strong {
     color: #1f2937;
 }

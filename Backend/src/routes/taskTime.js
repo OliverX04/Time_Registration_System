@@ -134,6 +134,37 @@ taskTimeRouter.post("/entries", requireIntern, (req, res) => {
     res.status(result.status).send(result.body)
 })
 
+taskTimeRouter.put("/management/entries/:entryId", requireSupervisor, (req, res) => {
+    const { values, fieldErrors } = validateEntry(req.body, false)
+    if (Object.keys(fieldErrors).length) {
+        return res.status(400).send({ error: "Please correct the task time fields.", fieldErrors })
+    }
+
+    const result = db.transaction(() => {
+        const entry = db.prepare(`
+            SELECT e.id, e.started_at AS startedAt, e.ended_at AS endedAt, i.intern_id AS internId
+            FROM task_time_entry e
+            JOIN task_assignment a ON a.id = e.task_assignment_id
+            JOIN internship i ON i.id = a.internship_id
+            WHERE e.id = ?
+        `).get(req.params.entryId)
+        if (!entry) return { status: 404, body: { error: "Task time entry not found." } }
+        if (!entry.endedAt) return { status: 409, body: { error: "Only completed time entries can be corrected." } }
+        if (entry.startedAt !== req.body.expectedStartedAt || entry.endedAt !== req.body.expectedEndedAt) {
+            return { status: 409, body: { error: "This time entry changed. Reopen task history before editing." } }
+        }
+        if (findOverlappingEntry(entry.internId, values.startedAt, values.endedAt, entry.id)) {
+            return { status: 409, body: { error: "Task time cannot overlap another entry." } }
+        }
+
+        db.prepare("UPDATE task_time_entry SET started_at = ?, ended_at = ? WHERE id = ?")
+            .run(values.startedAt, values.endedAt, entry.id)
+        return { status: 200, body: { entry: findEntry(entry.id) } }
+    }).immediate()
+
+    res.status(result.status).send(result.body)
+})
+
 taskTimeRouter.get("/tasks/:taskId/history", (req, res) => {
     if (typeof req.user?.id !== "string") {
         return res.status(401).send({ error: "Unauthorized" })
@@ -350,14 +381,14 @@ function requireSupervisor(req, res, next) {
     }
 
     if (!account.is_enabled || account.role !== "SUPERVISOR") {
-        return res.status(403).send({ error: "Only active Supervisors can manage task assignments." })
+        return res.status(403).send({ error: "Only enabled Supervisors can perform this action." })
     }
 
     req.user = { ...req.user, role: account.role }
     next()
 }
 
-function validateEntry(body) {
+function validateEntry(body, requireAssignment = true) {
     const fieldErrors = {}
 
     if (!body || typeof body !== "object" || Array.isArray(body)) {
@@ -368,7 +399,7 @@ function validateEntry(body) {
     const startedTime = typeof body.startedAt === "string" ? Date.parse(body.startedAt) : Number.NaN
     const endedTime = typeof body.endedAt === "string" ? Date.parse(body.endedAt) : Number.NaN
 
-    if (!taskAssignmentId) {
+    if (requireAssignment && !taskAssignmentId) {
         fieldErrors.taskAssignmentId = "Task assignment is required."
     }
 
@@ -461,20 +492,21 @@ function findActiveAssignment(assignmentId, userId) {
     `).get(assignmentId, userId)
 }
 
-function findOverlappingEntry(userId, startedAt, endedAt) {
+function findOverlappingEntry(userId, startedAt, endedAt, excludedEntryId = "") {
     return db.prepare(`
         SELECT task_time_entry.id
         FROM task_time_entry
         JOIN task_assignment ON task_assignment.id = task_time_entry.task_assignment_id
         JOIN internship ON internship.id = task_assignment.internship_id
         WHERE internship.intern_id = ?
+            AND task_time_entry.id != ?
             AND julianday(task_time_entry.started_at) < julianday(?)
             AND (
                 task_time_entry.ended_at IS NULL
                 OR julianday(task_time_entry.ended_at) > julianday(?)
             )
         LIMIT 1
-    `).get(userId, endedAt, startedAt)
+    `).get(userId, excludedEntryId, endedAt, startedAt)
 }
 
 function findEntry(entryId) {

@@ -18,6 +18,17 @@ export async function getTaskTimeHistory(taskId) {
     return taskTimeRequest(`/task-time/tasks/${encodeURIComponent(taskId)}/history`)
 }
 
+export function correctTaskTimeEntry(entry, startedAt, endedAt) {
+    return taskTimeRequest(`/task-time/management/entries/${encodeURIComponent(entry.id)}`, {
+        method: "PUT",
+        body: JSON.stringify({
+            startedAt, endedAt,
+            expectedStartedAt: entry.startedAt,
+            expectedEndedAt: entry.endedAt
+        })
+    })
+}
+
 export async function joinTask(taskId) {
     const data = await taskTimeRequest("/task-time/assignments", {
         method: "POST",

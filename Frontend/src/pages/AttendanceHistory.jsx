@@ -1,12 +1,20 @@
 import { useEffect, useState } from "react"
 import AppLayout from "../components/AppLayout.jsx"
 import { getAttendanceHistory } from "../services/attendanceService.js"
+import AttendanceRequestForm from "../components/AttendanceRequestForm.jsx"
+import { CorrectionDetails } from "../components/AttendanceCorrectionRequests.jsx"
 import "../styles/attendance.css"
+import "../styles/attendanceManagement.css"
 
 function AttendanceHistory() {
     const [sessions, setSessions] = useState([])
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState("")
+    const [internships, setInternships] = useState([])
+    const [requests, setRequests] = useState([])
+    const [form, setForm] = useState(null)
+    const [version, setVersion] = useState(0)
+    const [notice, setNotice] = useState("")
     const sessionGroups = groupSessionsByDate(sessions)
 
     useEffect(() => {
@@ -15,7 +23,12 @@ function AttendanceHistory() {
         async function loadHistory() {
             try {
                 const result = await getAttendanceHistory()
-                if (!cancelled) setSessions(result.sessions)
+                if (!cancelled) {
+                    setError("")
+                    setSessions(result.sessions)
+                    setInternships(result.internships)
+                    setRequests(result.requests)
+                }
             } catch (err) {
                 if (!cancelled) setError(err.message)
             } finally {
@@ -25,7 +38,7 @@ function AttendanceHistory() {
 
         loadHistory()
         return () => { cancelled = true }
-    }, [])
+    }, [version])
 
     return (
         <AppLayout>
@@ -35,6 +48,25 @@ function AttendanceHistory() {
 
                 {isLoading && <p className="task-helper">Loading attendance history...</p>}
                 {error && <p className="error-message" role="alert">{error}</p>}
+                {notice && <p className="success-message" role="status">{notice}</p>}
+                <button className="attendance-action" type="button" disabled={Boolean(form) || isLoading}
+                    onClick={() => { setIsLoading(true); setVersion((current) => current + 1) }}>Refresh history</button>
+                {internships.length > 0 && <button className="attendance-action" type="button"
+                    disabled={Boolean(form)} onClick={() => setForm({ session: null })}>Report missing attendance</button>}
+                {form && <AttendanceRequestForm session={form.session} internships={internships}
+                    onCancel={() => setForm(null)} onSubmitted={() => {
+                        setForm(null)
+                        setNotice("Correction request submitted.")
+                        setIsLoading(true)
+                        setVersion((current) => current + 1)
+                    }} />}
+                {requests.length > 0 && <section aria-label="Your correction requests">
+                    <h2>Your correction requests</h2>
+                    {requests.map((request) => <article className="attendance-correction-form" key={request.id}>
+                        <strong>{request.status === "PENDING" ? "Pending" : request.status === "APPROVED" ? "Approved" : "Rejected"}</strong>
+                        <CorrectionDetails request={request} />
+                    </article>)}
+                </section>}
 
                 {!isLoading && !error && sessions.length === 0 && (
                     <p className="task-empty">No attendance sessions yet.</p>
@@ -70,9 +102,13 @@ function AttendanceHistory() {
                                             <p aria-label={`Duration: ${session.checkedOutAt ? formatDuration(session) : "Not available"}`}>
                                                 <strong>{session.checkedOutAt ? formatDuration(session) : "—"}</strong>
                                             </p>
-                                            <p aria-label={`Status: ${session.checkedOutAt ? "Completed" : "In progress"}`}>
+                                            <div>
                                                 <strong>{session.checkedOutAt ? "Completed" : "In progress"}</strong>
-                                            </p>
+                                                <button className="attendance-action" type="button"
+                                                    aria-label={`Request correction for ${formatDate(session.checkedInAt)} at ${formatTime(session.checkedInAt)}`}
+                                                    disabled={Boolean(form) || requests.some((request) => request.sessionId === session.id && request.status === "PENDING")}
+                                                    onClick={() => setForm({ session })}>Request correction</button>
+                                            </div>
                                         </article>
                                     ))}
                                 </div>

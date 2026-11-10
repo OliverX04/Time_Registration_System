@@ -47,11 +47,52 @@ function addAccount(id, role) {
     return createToken({ id, email, role })
 }
 
-async function request(method, route, token = internToken) {
+async function request(method, route, token = internToken, body) {
     const headers = token ? { Authorization: `Bearer ${token}` } : {}
-    const response = await fetch(`${baseUrl}${route}`, { method, headers })
+    if (body !== undefined) headers["Content-Type"] = "application/json"
+    const response = await fetch(`${baseUrl}${route}`, { method, headers, body: JSON.stringify(body) })
     return { status: response.status, body: await response.json() }
 }
+
+test("missing attendance requests are private and only approval creates a record", async () => {
+    const otherToken = addAccount("correction-other", "INTERN")
+    const submit = (body, token = internToken) => request("POST", "/attendance/correction-requests", token, body)
+    const queue = "/attendance/management/correction-requests"
+    const review = (id, decision, token = supervisorToken) => request("POST", `${queue}/${id}/review`, token, { decision })
+    const proposed = {
+        internshipId: "active-internship",
+        checkedInAt: "2026-10-02T08:00:00.000Z",
+        checkedOutAt: "2026-10-02T10:00:00.000Z",
+        reason: "Missed check-in and check-out"
+    }
+    assert.equal((await submit(proposed, otherToken)).status, 404)
+    const created = await submit(proposed)
+    assert.equal(created.status, 201)
+    assert.equal((await submit(proposed)).status, 409)
+    const { id } = created.body
+    assert.equal((await request("GET", queue, supervisorToken)).body.requests[0].id, id)
+    assert.deepEqual((await request("GET", "/attendance/history", otherToken)).body.requests, [])
+    assert.equal((await review(id, "APPROVED", internToken)).status, 403)
+    assert.equal((await request("GET", "/attendance/history")).body.sessions.length, 0)
+    assert.equal((await review(id, "APPROVED")).status, 200)
+    assert.equal((await review(id, "APPROVED")).status, 409)
+    const { sessions, requests } = (await request("GET", "/attendance/history")).body
+    assert.equal(requests[0].status, "APPROVED")
+    assert.equal(sessions[0].checkedOutAt, proposed.checkedOutAt)
+
+    const edit = await submit({
+        ...proposed, sessionId: sessions[0].id,
+        expectedCheckedInAt: proposed.checkedInAt, expectedCheckedOutAt: proposed.checkedOutAt,
+        checkedOutAt: "2026-10-02T11:00:00.000Z"
+    })
+    assert.equal(edit.status, 201)
+    db.prepare("UPDATE attendance_session SET checked_out_at = ? WHERE id = ?")
+        .run("2026-10-02T12:00:00.000Z", sessions[0].id)
+    assert.equal((await review(edit.body.id, "APPROVED")).status, 409)
+    assert.equal((await review(edit.body.id, "REJECTED")).status, 200)
+    assert.equal((await request("GET", "/attendance/history")).body.sessions[0].checkedOutAt, "2026-10-02T12:00:00.000Z")
+    db.prepare("DELETE FROM attendance_session WHERE id = ?").run(sessions[0].id)
+})
 
 test("attendance routes require an enabled Intern and status requires an active internship", async () => {
     assert.equal((await request("GET", "/attendance/status", null)).status, 401)

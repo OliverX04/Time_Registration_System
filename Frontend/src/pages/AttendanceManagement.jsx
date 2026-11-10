@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import AppLayout from "../components/AppLayout.jsx"
+import AttendanceCorrectionRequests from "../components/AttendanceCorrectionRequests.jsx"
 import { getInterns } from "../services/internshipService.js"
 import {
     addAttendance,
@@ -170,6 +171,11 @@ function AttendanceManagement() {
             <div className="auth-card dashboard-card attendance-management">
                 <h1>Attendance</h1>
                 <p className="attendance-description">Add missing visits or correct an Intern's check-in and check-out times.</p>
+
+                <AttendanceCorrectionRequests
+                    disabled={isSaving || Boolean(form)}
+                    onApproved={() => setAttendanceVersion((current) => current + 1)}
+                />
 
                 <div className="attendance-management-toolbar">
                     <div className="form-group attendance-intern-search">

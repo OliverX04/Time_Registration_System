@@ -9,6 +9,24 @@ export async function getAttendanceHistory() {
     return attendanceRequest("/attendance/history")
 }
 
+export function submitAttendanceCorrection(values) {
+    return attendanceRequest("/attendance/correction-requests", {
+        method: "POST",
+        body: JSON.stringify(values)
+    })
+}
+
+export function getAttendanceCorrectionRequests() {
+    return attendanceRequest("/attendance/management/correction-requests")
+}
+
+export function reviewAttendanceCorrection(id, decision) {
+    return attendanceRequest(`/attendance/management/correction-requests/${encodeURIComponent(id)}/review`, {
+        method: "POST",
+        body: JSON.stringify({ decision })
+    })
+}
+
 export async function checkIn() {
     return attendanceRequest("/attendance/check-in", { method: "POST" })
 }

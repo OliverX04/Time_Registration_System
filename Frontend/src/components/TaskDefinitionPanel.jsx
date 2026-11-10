@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
+import TaskTimeCorrectionForm from "./TaskTimeCorrectionForm.jsx"
 import { getInterns } from "../services/internshipService.js"
 import {
     createProjectTask,
@@ -109,8 +110,8 @@ function TaskDefinitionPanel({ userRole }) {
         return () => { cancelled = true }
     }, [selectedProjectId])
 
-    async function handleToggleTaskHistory(task) {
-        if (historyTaskId === task.id) {
+    async function handleToggleTaskHistory(task, refresh = false) {
+        if (historyTaskId === task.id && !refresh) {
             historyRequestId.current += 1
             setHistoryTaskId("")
             setTaskHistory(null)
@@ -476,6 +477,8 @@ function TaskDefinitionPanel({ userRole }) {
                                                 history={taskHistory}
                                                 isLoading={isHistoryLoading}
                                                 error={historyError}
+                                                canCorrect={isSupervisor}
+                                                onCorrected={() => handleToggleTaskHistory(task, true)}
                                             />
                                         )}
                                     </li>
@@ -504,7 +507,8 @@ function TaskFields({ title, description, setTitle, setDescription, disabled, pr
     )
 }
 
-function TaskHistoryPanel({ history, isLoading, error }) {
+function TaskHistoryPanel({ history, isLoading, error, canCorrect, onCorrected }) {
+    const [editingEntryId, setEditingEntryId] = useState(null)
     if (isLoading) return <div className="task-history-panel"><p className="task-helper">Loading task history...</p></div>
     if (error) return <div className="task-history-panel"><p className="error-message" role="alert">{error}</p></div>
     if (!history) return null
@@ -542,6 +546,15 @@ function TaskHistoryPanel({ history, isLoading, error }) {
                                         <strong>{entry.internFirstName} {entry.internLastName}</strong>
                                         <span>{formatTaskTime(entry.startedAt)}–{entry.endedAt ? formatTaskTime(entry.endedAt) : "In progress"}</span>
                                         <span>{entry.durationMs === null ? "—" : formatTaskDuration(entry.durationMs)}</span>
+                                        {canCorrect && entry.endedAt && (
+                                            <button className="project-action" type="button" disabled={Boolean(editingEntryId)}
+                                                onClick={() => setEditingEntryId(entry.id)}>Correct time</button>
+                                        )}
+                                        {editingEntryId === entry.id && <TaskTimeCorrectionForm entry={entry}
+                                            onCancel={() => setEditingEntryId(null)} onSaved={() => {
+                                                setEditingEntryId(null)
+                                                onCorrected()
+                                            }} />}
                                     </article>
                                 ))}
                             </div>

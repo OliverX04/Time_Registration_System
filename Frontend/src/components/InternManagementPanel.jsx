@@ -273,7 +273,11 @@ function InternManagementPanel() {
                                                 <span>{intern.email}</span>
                                             </th>
                                             <td>
-                                                <span>{intern.currentProjectName || "Unassigned"}</span>
+                                                <span>
+                                                    {intern.currentProjectName || (!intern.internshipId && intern.lastEndedAt && intern.lastProjectName
+                                                        ? `Last project: ${intern.lastProjectName}`
+                                                        : "Unassigned")}
+                                                </span>
                                                 {Boolean(intern.internshipId && intern.isEnabled) && (
                                                     <div className="intern-project-controls">
                                                         <select

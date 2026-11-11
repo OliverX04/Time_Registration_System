@@ -25,6 +25,48 @@
     margin: 0 0 24px;
 }
 
+.attendance-request-queue {
+    margin-bottom: 24px;
+    padding: 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #f8fafc;
+    overflow-wrap: anywhere;
+}
+
+.attendance-request-queue-heading,
+.attendance-request-queue-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.attendance-request-queue-heading {
+    justify-content: space-between;
+}
+
+.attendance-request-queue .attendance-muted {
+    margin: 8px 0 0;
+}
+
+.attendance-request-queue .attendance-correction-form {
+    margin: 12px 0 0;
+    background: white;
+}
+
+.attendance-request-queue h3 {
+    margin-top: 0;
+}
+
+.attendance-request-queue .attendance-queue-reload {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    font-size: 18px;
+    line-height: 1;
+}
+
 .attendance-muted {
     margin: 8px 0 16px;
 }

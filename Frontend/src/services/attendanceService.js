@@ -16,8 +16,10 @@ export function submitAttendanceCorrection(values) {
     })
 }
 
-export function getAttendanceCorrectionRequests() {
-    return attendanceRequest("/attendance/management/correction-requests")
+export const attendanceQueueChanged = "attendance-queue-changed"
+
+export function getAttendanceCorrectionRequests(reviewed = false) {
+    return attendanceRequest(`/attendance/management/correction-requests${reviewed ? "?reviewed=true" : ""}`)
 }
 
 export function reviewAttendanceCorrection(id, decision) {

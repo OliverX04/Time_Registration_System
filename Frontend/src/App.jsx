@@ -133,6 +133,15 @@ function App() {
             />
 
             <Route
+                path="/supervisor-dashboard/attendance/corrections"
+                element={
+                    <ProtectedRoute requiredRole="SUPERVISOR">
+                        <AttendanceCorrectionHistory supervisor />
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
                 path="/supervisor-dashboard/tasks"
                 element={
                     <ProtectedRoute requiredRole="SUPERVISOR">

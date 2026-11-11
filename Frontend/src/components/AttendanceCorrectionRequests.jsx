@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
-import { getAttendanceCorrectionRequests, reviewAttendanceCorrection } from "../services/attendanceService.js"
+import { Link } from "react-router-dom"
+import { attendanceQueueChanged, getAttendanceCorrectionRequests, reviewAttendanceCorrection } from "../services/attendanceService.js"
 
 export function CorrectionDetails({ request }) {
     const timestamp = (value) => value ? new Date(value).toLocaleString() : "Open"
@@ -23,7 +24,12 @@ export default function AttendanceCorrectionRequests({ onApproved, disabled }) {
     useEffect(() => {
         let active = true
         getAttendanceCorrectionRequests().then(
-            ({ requests }) => { if (active) setRequests(requests) },
+            ({ requests }) => {
+                if (active) {
+                    setRequests(requests)
+                    window.dispatchEvent(new Event(attendanceQueueChanged))
+                }
+            },
             (err) => { if (active) setError(err.message) }
         )
         return () => { active = false }
@@ -35,6 +41,7 @@ export default function AttendanceCorrectionRequests({ onApproved, disabled }) {
         try {
             await reviewAttendanceCorrection(id, decision)
             setRequests((current) => current.filter((request) => request.id !== id))
+            window.dispatchEvent(new Event(attendanceQueueChanged))
             if (decision === "APPROVED") onApproved()
         } catch (err) {
             setError(err.message)
@@ -44,13 +51,21 @@ export default function AttendanceCorrectionRequests({ onApproved, disabled }) {
     }
 
     return (
-        <section aria-label="Attendance correction requests">
-            <h2>Attendance correction requests</h2>
-            <button className="attendance-action" type="button" disabled={busy}
-                onClick={() => { setRequests(null); setError(""); setVersion((current) => current + 1) }}>Refresh requests</button>
+        <section className="attendance-request-queue" aria-labelledby="attendance-request-queue-title">
+            <div className="attendance-request-queue-heading">
+                <h2 id="attendance-request-queue-title">Attendance correction requests</h2>
+                <div className="attendance-request-queue-actions">
+                    <Link className="attendance-history-link" to="corrections">Show history</Link>
+                    <button className="attendance-action attendance-queue-reload" type="button"
+                        aria-label="Refresh requests" title="Refresh requests" disabled={busy || (!requests && !error)}
+                        onClick={() => { setRequests(null); setError(""); setVersion((current) => current + 1) }}>
+                        <span aria-hidden="true">↻</span>
+                    </button>
+                </div>
+            </div>
             {error && <p className="error-message" role="alert">{error}</p>}
-            {!requests && !error && <p>Loading requests…</p>}
-            {requests?.length === 0 && <p>No pending requests.</p>}
+            {!requests && !error && <p className="attendance-muted" role="status">Loading requests…</p>}
+            {requests?.length === 0 && <p className="attendance-muted">No pending requests.</p>}
             {requests?.map((request) => (
                 <article className="attendance-correction-form" key={request.id}>
                     <h3>{request.firstName} {request.lastName} ({request.email})</h3>

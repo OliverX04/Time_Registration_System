@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { NavLink, useLocation, useNavigate } from "react-router-dom"
-import { getAttendanceHistory } from "../services/attendanceService.js"
+import { attendanceQueueChanged, getAttendanceCorrectionRequests, getAttendanceHistory } from "../services/attendanceService.js"
 import { attendanceDecisionsSeen, unseenAttendanceDecisions } from "../services/attendanceDecisions.js"
 import {
     getCurrentUser,
@@ -15,6 +15,8 @@ function AppLayout({ children }) {
     const { pathname } = useLocation()
     const [decisionCount, setDecisionCount] = useState(0)
     const isSupervisor = user?.role === "SUPERVISOR"
+    const supervisorId = isSupervisor ? user.id : null
+    const [pendingCount, setPendingCount] = useState(0)
     const homePath = isSupervisor
         ? "/supervisor-dashboard"
         : "/intern-dashboard"
@@ -52,6 +54,31 @@ function AppLayout({ children }) {
             window.removeEventListener("storage", updateCount)
         }
     }, [internId, pathname])
+
+    useEffect(() => {
+        if (!supervisorId) return
+        let active = true
+        let latestLoad = 0
+
+        async function loadPendingCount() {
+            const load = ++latestLoad
+            try {
+                const { requests } = await getAttendanceCorrectionRequests()
+                if (active && load === latestLoad) setPendingCount(requests.length)
+            } catch {
+                // The attendance queue shows loading errors.
+            }
+        }
+
+        loadPendingCount()
+        window.addEventListener("focus", loadPendingCount)
+        window.addEventListener(attendanceQueueChanged, loadPendingCount)
+        return () => {
+            active = false
+            window.removeEventListener("focus", loadPendingCount)
+            window.removeEventListener(attendanceQueueChanged, loadPendingCount)
+        }
+    }, [supervisorId, pathname])
 
     function handleLogout() {
         logoutUser()
@@ -94,8 +121,13 @@ function AppLayout({ children }) {
                     )}
 
                     {isSupervisor && (
-                        <NavLink className="sidebar-link" to={`${homePath}/attendance`}>
+                        <NavLink className="sidebar-link sidebar-link-with-badge" to={`${homePath}/attendance`}>
                             Attendance
+                            {pendingCount > 0 && (
+                                <span className="sidebar-notification-badge" aria-label={`${pendingCount} pending correction requests`}>
+                                    {pendingCount > 99 ? "99+" : pendingCount}
+                                </span>
+                            )}
                         </NavLink>
                     )}
 

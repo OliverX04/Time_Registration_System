@@ -8,7 +8,7 @@ export const attendanceRouter = express.Router()
 attendanceRouter.use(requireAuth)
 
 attendanceRouter.get("/management/correction-requests", requireSupervisor, (req, res) => {
-    res.send({ requests: listCorrections() })
+    res.send({ requests: listCorrections(null, req.query.reviewed === "true") })
 })
 
 attendanceRouter.post("/management/correction-requests/:id/review", requireSupervisor, (req, res) => {
@@ -318,17 +318,18 @@ function findIntern(userId) {
     `).get(userId)
 }
 
-function listCorrections(internId = null) {
+function listCorrections(internId = null, reviewed = false) {
     return db.prepare(`
         SELECT r.id, r.session_id AS sessionId, r.original_in AS originalIn, r.original_out AS originalOut,
             r.proposed_in AS proposedIn, r.proposed_out AS proposedOut, r.reason, r.status,
-            r.created_at AS createdAt, u.first_name AS firstName, u.last_name AS lastName, u.email
+            r.created_at AS createdAt, r.reviewed_at AS reviewedAt,
+            u.first_name AS firstName, u.last_name AS lastName, u.email
         FROM attendance_correction_request r
         JOIN internship i ON i.id = r.internship_id
         JOIN user_account u ON u.id = i.intern_id
-        WHERE (? IS NULL AND r.status = 'PENDING') OR i.intern_id = ?
-        ORDER BY r.created_at DESC, r.id DESC
-    `).all(internId, internId)
+        WHERE (? IS NULL AND (r.status <> 'PENDING') = ?) OR i.intern_id = ?
+        ORDER BY CASE WHEN ? = 1 THEN r.reviewed_at ELSE r.created_at END DESC, r.id DESC
+    `).all(internId, Number(reviewed), internId, Number(reviewed))
 }
 
 function findManagedSession(sessionId) {

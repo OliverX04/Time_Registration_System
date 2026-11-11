@@ -31,11 +31,7 @@ function InternManagementPanel() {
     const filteredInterns = useMemo(() => {
         const normalizedSearch = search.trim().toLocaleLowerCase()
         return interns.filter((intern) => {
-            const status = intern.internshipId
-                ? "active"
-                : intern.lastOutcome
-                    ? "former"
-                    : "awaiting"
+            const status = getInternStatus(intern)
             const matchesStatus = statusFilter === "all" || status === statusFilter
             const searchableText = [
                 intern.firstName,
@@ -270,7 +266,11 @@ function InternManagementPanel() {
                                                 <span>{intern.email}</span>
                                             </th>
                                             <td>
-                                                <span>{intern.currentProjectName || intern.lastProjectName || "Unassigned"}</span>
+                                                <span>
+                                                    {intern.currentProjectName || (!intern.internshipId && intern.lastEndedAt && intern.lastProjectName
+                                                        ? `Last project: ${intern.lastProjectName}`
+                                                        : "Unassigned")}
+                                                </span>
                                                 {Boolean(intern.internshipId && intern.isEnabled) && (
                                                     <div className="intern-project-controls">
                                                         <select
@@ -279,32 +279,32 @@ function InternManagementPanel() {
                                                             disabled={busy}
                                                             onChange={(event) => setSelectedProjects((current) => ({ ...current, [intern.id]: event.target.value }))}
                                                         >
-                                                            <option value="">Choose a project</option>
+                                                            <option value="">Unassigned</option>
                                                             {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
                                                         </select>
                                                         <button
                                                             type="button"
                                                             className="intern-button activate-button"
-                                                            disabled={busy || !selectedProjects[intern.id] || selectedProjects[intern.id] === intern.currentProjectId}
-                                                            onClick={() => handleProjectAssignment(intern, selectedProjects[intern.id])}
+                                                            disabled={
+                                                                busy ||
+                                                                (selectedProjects[intern.id] ?? intern.currentProjectId ?? "") ===
+                                                                (intern.currentProjectId ?? "")
+                                                            }
+                                                            onClick={() =>
+                                                                handleProjectAssignment(
+                                                                    intern,
+                                                                    (selectedProjects[intern.id] ?? intern.currentProjectId ?? "") || null
+                                                                )
+                                                            }
                                                         >
-                                                            {intern.currentProjectId ? "Change" : "Assign"}
+                                                            Save
                                                         </button>
-                                                        {intern.currentProjectId && (
-                                                            <button type="button" className="intern-button deactivate-button" disabled={busy} onClick={() => handleProjectAssignment(intern, null)}>
-                                                                End
-                                                            </button>
-                                                        )}
                                                     </div>
                                                 )}
                                             </td>
                                             <td>
-                                                <span className={intern.internshipId ? "intern-active" : intern.lastOutcome ? "intern-inactive" : "intern-awaiting"}>
-                                                    {intern.internshipId
-                                                        ? "Active"
-                                                        : intern.lastOutcome
-                                                            ? `Former · ${intern.lastOutcome.toLowerCase()}`
-                                                            : "Awaiting activation"}
+                                                <span className={statusClassName(getInternStatus(intern))}>
+                                                    {statusLabel(getInternStatus(intern), intern.lastOutcome)}
                                                 </span>
                                                 {!intern.internshipId && intern.lastEndedAt && (
                                                     <div>{formatDate(intern.lastEndedAt)}</div>
@@ -387,6 +387,24 @@ function todayDate() {
     }).formatToParts(new Date())
     const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]))
     return `${values.year}-${values.month}-${values.day}`
+}
+
+function getInternStatus(intern) {
+    if (intern.internshipId) return "active"
+    if (intern.lastOutcome) return "former"
+    return "awaiting"
+}
+
+function statusClassName(status) {
+    if (status === "active") return "intern-active"
+    if (status === "former") return "intern-inactive"
+    return "intern-awaiting"
+}
+
+function statusLabel(status, lastOutcome) {
+    if (status === "active") return "Active"
+    if (status === "former") return `Former · ${lastOutcome.toLowerCase()}`
+    return "Awaiting activation"
 }
 
 function formatDate(value) {

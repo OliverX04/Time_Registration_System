@@ -27,6 +27,7 @@ function TaskDefinitionPanel({ userRole, userId }) {
     const [tasks, setTasks] = useState([])
     const [interns, setInterns] = useState([])
     const [assignments, setAssignments] = useState([])
+    const [showOnlyAssigned, setShowOnlyAssigned] = useState(false)
     const [expandedTaskId, setExpandedTaskId] = useState("")
     const [historyTaskId, setHistoryTaskId] = useState("")
     const [taskHistory, setTaskHistory] = useState(null)
@@ -47,6 +48,10 @@ function TaskDefinitionPanel({ userRole, userId }) {
     const [error, setError] = useState("")
     const [success, setSuccess] = useState("")
     const selectedProject = projects.find((project) => project.id === selectedProjectId)
+    const isAssignmentFilterActive = userRole === "INTERN" && showOnlyAssigned
+    const visibleTasks = isAssignmentFilterActive
+        ? tasks.filter((task) => assignments.some((assignment) => assignment.taskId === task.id))
+        : tasks
     const activeInterns = useMemo(
         () => interns.filter((intern) => intern.isEnabled && intern.internshipId),
         [interns]
@@ -340,6 +345,13 @@ function TaskDefinitionPanel({ userRole, userId }) {
                         </select>
                     </div>
                 )}
+                {userRole === "INTERN" && selectedProject && (
+                    <label className="task-assignment-filter">
+                        <input type="checkbox" checked={showOnlyAssigned}
+                            onChange={(event) => setShowOnlyAssigned(event.target.checked)} />
+                        My assigned tasks
+                    </label>
+                )}
             </div>
 
             {error && <p className="error-message" role="alert">{error}</p>}
@@ -375,11 +387,13 @@ function TaskDefinitionPanel({ userRole, userId }) {
                         </form>
                     )}
 
-                    {tasks.length === 0 ? (
-                        <p className="task-empty task-list-empty">No tasks in this project yet.</p>
+                    {visibleTasks.length === 0 ? (
+                        <p className="task-empty task-list-empty">
+                            {isAssignmentFilterActive ? "You have no assigned tasks in this project." : "No tasks in this project yet."}
+                        </p>
                     ) : (
                         <ul className="task-workspace-list">
-                            {tasks.map((task) => {
+                            {visibleTasks.map((task) => {
                                 const taskAssignments = assignments.filter((assignment) => assignment.taskId === task.id)
                                 const ownAssignment = isSupervisor ? null : taskAssignments[0]
                                 const canEdit = isSupervisor || task.createdByRole === "INTERN"

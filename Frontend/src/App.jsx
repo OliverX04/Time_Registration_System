@@ -6,6 +6,8 @@ import SupervisorDashboard from "./pages/SupervisorDashboard.jsx"
 import Projects from "./pages/Projects.jsx"
 import Tasks from "./pages/Tasks.jsx"
 import AttendanceHistory from "./pages/AttendanceHistory.jsx"
+import AttendanceCorrectionHistory from "./pages/AttendanceCorrectionHistory.jsx"
+import AttendanceCorrectionRequest from "./pages/AttendanceCorrectionRequest.jsx"
 import AttendanceManagement from "./pages/AttendanceManagement.jsx"
 import Statistics from "./pages/Statistics.jsx"
 import Interns from "./pages/Interns.jsx"
@@ -72,6 +74,24 @@ function App() {
             />
 
             <Route
+                path="/intern-dashboard/attendance-history/corrections"
+                element={
+                    <ProtectedRoute requiredRole="INTERN">
+                        <AttendanceCorrectionHistory />
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/intern-dashboard/attendance-history/request-correction"
+                element={
+                    <ProtectedRoute requiredRole="INTERN">
+                        <AttendanceCorrectionRequest />
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
                 path="/intern-dashboard/statistics"
                 element={
                     <ProtectedRoute requiredRole="INTERN">
@@ -108,6 +128,15 @@ function App() {
                 element={
                     <ProtectedRoute requiredRole="SUPERVISOR">
                         <AttendanceManagement />
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/supervisor-dashboard/attendance/corrections"
+                element={
+                    <ProtectedRoute requiredRole="SUPERVISOR">
+                        <AttendanceCorrectionHistory supervisor />
                     </ProtectedRoute>
                 }
             />

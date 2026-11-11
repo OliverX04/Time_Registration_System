@@ -45,6 +45,26 @@
     background-color: #eff6ff;
 }
 
+.sidebar-link-with-badge {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+}
+
+.sidebar-notification-badge {
+    display: inline-grid;
+    place-items: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: #b91c1c;
+    color: #fff;
+    font-size: 11px;
+    line-height: 1;
+}
+
 .sidebar-link:focus-visible {
     outline: 3px solid #93c5fd;
     outline-offset: 2px;

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import AppLayout from "../components/AppLayout.jsx"
+import AttendanceCorrectionRequests from "../components/AttendanceCorrectionRequests.jsx"
 import { getInterns } from "../services/internshipService.js"
 import {
     addAttendance,
@@ -19,11 +20,13 @@ function AttendanceManagement() {
     const [isInternsLoading, setIsInternsLoading] = useState(true)
     const [isLoading, setIsLoading] = useState(false)
     const [isSaving, setIsSaving] = useState(false)
+    const [isReviewing, setIsReviewing] = useState(false)
     const [internsVersion, setInternsVersion] = useState(0)
     const [attendanceVersion, setAttendanceVersion] = useState(0)
     const [internsError, setInternsError] = useState("")
     const [error, setError] = useState("")
     const [success, setSuccess] = useState("")
+    const isBusy = isSaving || isReviewing
 
     useEffect(() => {
         let cancelled = false
@@ -79,6 +82,7 @@ function AttendanceManagement() {
     }
 
     function openForm(session = null) {
+        if (!attendance || isLoading || isBusy || form) return
         const internship = session
             ? attendance.internships.find((item) => item.id === session.internshipId)
             : attendance.internships.find((item) => !item.endedAt) || attendance.internships[0]
@@ -89,15 +93,22 @@ function AttendanceManagement() {
     }
 
     function reloadAttendance() {
+        setIsLoading(true)
         setForm(null)
         setFieldErrors({})
         setSuccess("")
         setAttendanceVersion((current) => current + 1)
     }
 
+    function refreshApprovedAttendance(internId) {
+        if (selectedInternId !== internId) return
+        setIsLoading(true)
+        setAttendanceVersion((current) => current + 1)
+    }
+
     async function saveAttendance(event) {
         event.preventDefault()
-        if (isSaving || !form) return
+        if (isBusy || !form) return
         const checkedInAt = readTimestamp(form.checkedInAt, form.session?.checkedInAt)
         const checkedOutAt = form.checkedOutAt
             ? readTimestamp(form.checkedOutAt, form.session?.checkedOutAt)
@@ -141,7 +152,7 @@ function AttendanceManagement() {
     }
 
     async function removeAttendance(session) {
-        if (isSaving || form) return
+        if (isBusy || form) return
         const name = `${attendance.intern.firstName} ${attendance.intern.lastName}`
         if (!window.confirm(`Delete the attendance record starting ${formatTimestamp(session.checkedInAt)} for ${name}? This cannot be undone.`)) return
         setIsSaving(true)
@@ -171,16 +182,23 @@ function AttendanceManagement() {
                 <h1>Attendance</h1>
                 <p className="attendance-description">Add missing visits or correct an Intern's check-in and check-out times.</p>
 
+                <AttendanceCorrectionRequests
+                    disabled={isSaving || Boolean(form)}
+                    busy={isReviewing}
+                    setBusy={setIsReviewing}
+                    onApproved={refreshApprovedAttendance}
+                />
+
                 <div className="attendance-management-toolbar">
                     <div className="form-group attendance-intern-search">
                         <label htmlFor="attendance-search">Search Interns</label>
-                        <input id="attendance-search" type="search" value={search} placeholder="Name or email" disabled={isSaving || isInternsLoading}
+                        <input id="attendance-search" type="search" value={search} placeholder="Name or email" disabled={isBusy || isInternsLoading}
                             onChange={(event) => setSearch(event.target.value)} />
                     </div>
                     <div className="form-group">
                         <label htmlFor="attendance-intern">Intern</label>
                         <select id="attendance-intern" value={selectedInternId} onChange={changeIntern}
-                            disabled={isInternsLoading || isSaving || interns.length === 0}>
+                            disabled={isInternsLoading || isBusy || interns.length === 0}>
                             <option value="">{isInternsLoading ? "Loading Interns..." : "Select an Intern"}</option>
                             {keepSelectedOption && <option value={selectedIntern.id}>{selectedIntern.firstName} {selectedIntern.lastName} ({selectedIntern.email})</option>}
                             {matchingInterns.map((intern) => (
@@ -189,7 +207,7 @@ function AttendanceManagement() {
                         </select>
                     </div>
                     <button className="attendance-action attendance-action-primary" type="button" onClick={() => openForm()}
-                        disabled={isLoading || isSaving || !attendance?.internships.length || Boolean(form)}>
+                        disabled={isLoading || isBusy || !attendance?.internships.length || Boolean(form)}>
                         Add attendance
                     </button>
                 </div>
@@ -205,13 +223,13 @@ function AttendanceManagement() {
                 </div>}
                 {error && <div className="error-message" role="alert">
                     <p>{error}</p>
-                    <button className="attendance-action" type="button" disabled={isSaving || isLoading} onClick={reloadAttendance}>Reload attendance</button>
+                    <button className="attendance-action" type="button" disabled={isBusy || isLoading} onClick={reloadAttendance}>Reload attendance</button>
                     {form && <small>Reloading closes this form and loads the latest records.</small>}
                 </div>}
                 {success && <p className="success-message" role="status">{success}</p>}
                 {isLoading && <p className="attendance-muted" role="status">Loading attendance...</p>}
 
-                {form && <form className="attendance-correction-form" onSubmit={saveAttendance}>
+                {form && attendance && <form className="attendance-correction-form" onSubmit={saveAttendance}>
                     <h2>{form.session ? "Edit attendance" : "Add attendance"}</h2>
                     <p className="attendance-muted">{selectedName} · {attendance.intern.email}<br />Times use your local time zone.</p>
                     {!form.session && attendance.internships.length > 1 && <div className="form-group">
@@ -259,9 +277,9 @@ function AttendanceManagement() {
                             <div><span className="attendance-record-label">Check-out</span><strong>{session.checkedOutAt ? formatTimestamp(session.checkedOutAt) : "Still checked in"}</strong></div>
                             <div><span className="attendance-record-label">Duration</span><strong className={!session.checkedOutAt ? "attendance-open" : ""}>{formatDuration(session)}</strong></div>
                             <div className="attendance-record-actions">
-                                <button className="attendance-action" type="button" disabled={isSaving || Boolean(form)} onClick={() => openForm(session)}
+                                <button className="attendance-action" type="button" disabled={isBusy || Boolean(form)} onClick={() => openForm(session)}
                                     aria-label={`Edit attendance starting ${formatTimestamp(session.checkedInAt)}`}>Edit</button>
-                                <button className="attendance-action attendance-action-danger" type="button" disabled={isSaving || Boolean(form)} onClick={() => removeAttendance(session)}
+                                <button className="attendance-action attendance-action-danger" type="button" disabled={isBusy || Boolean(form)} onClick={() => removeAttendance(session)}
                                     aria-label={`Delete attendance starting ${formatTimestamp(session.checkedInAt)}`}>Delete</button>
                             </div>
                         </li>)}

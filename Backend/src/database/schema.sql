@@ -102,3 +102,20 @@ CREATE INDEX IF NOT EXISTS idx_task_assignment_internship_id ON task_assignment(
 CREATE INDEX IF NOT EXISTS idx_task_assignment_task_id ON task_assignment(task_id);
 CREATE INDEX IF NOT EXISTS idx_attendance_session_internship_id ON attendance_session(internship_id);
 CREATE INDEX IF NOT EXISTS idx_task_time_entry_task_assignment_id ON task_time_entry(task_assignment_id);
+CREATE TABLE IF NOT EXISTS attendance_correction_request (
+    id TEXT PRIMARY KEY NOT NULL DEFAULT (lower(hex(randomblob(16)))),
+    internship_id TEXT NOT NULL REFERENCES internship(id),
+    session_id TEXT,
+    original_in TEXT,
+    original_out TEXT,
+    proposed_in TEXT NOT NULL,
+    proposed_out TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')),
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    reviewed_at TEXT,
+    reviewed_by TEXT REFERENCES user_account(id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS one_pending_correction_per_session
+ON attendance_correction_request (session_id) WHERE status = 'PENDING' AND session_id IS NOT NULL;

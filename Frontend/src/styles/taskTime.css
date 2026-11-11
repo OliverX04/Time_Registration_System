@@ -32,6 +32,15 @@
     margin: 0;
 }
 
+.task-assignment-filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #374151;
+    font-size: 14px;
+    cursor: pointer;
+}
+
 .task-inline-form {
     margin-top: 18px;
     padding: 18px;
@@ -129,11 +138,28 @@
 .task-history-entry {
     display: grid;
     grid-template-columns: minmax(140px, 1fr) minmax(150px, 1fr) minmax(70px, auto);
+    align-items: center;
     gap: 12px;
     padding: 10px 4px;
     border-bottom: 1px solid #e5e7eb;
     color: #4b5563;
     font-size: 14px;
+}
+
+.task-history-entry > .task-time-correction {
+    grid-column: 1 / -1;
+}
+
+.task-history-entry-time {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.task-history-entry-time > .project-action {
+    flex: none;
+    padding: 3px 8px;
+    font-size: 12px;
 }
 
 .task-history-entry strong {
@@ -201,6 +227,32 @@
 
 .task-intern-list {
     margin-top: 0;
+}
+
+.task-assignments-heading,
+.task-assignment-picker {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.task-assignments-heading {
+    justify-content: space-between;
+}
+
+.task-assignments-heading h3,
+.task-assignment-picker .form-group {
+    margin: 0;
+}
+
+.task-assignment-picker {
+    align-items: flex-end;
+}
+
+.task-assignment-picker .form-group {
+    width: min(280px, 100%);
 }
 
 .task-intern-list li {

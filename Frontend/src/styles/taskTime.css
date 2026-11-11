@@ -229,6 +229,32 @@
     margin-top: 0;
 }
 
+.task-assignments-heading,
+.task-assignment-picker {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.task-assignments-heading {
+    justify-content: space-between;
+}
+
+.task-assignments-heading h3,
+.task-assignment-picker .form-group {
+    margin: 0;
+}
+
+.task-assignment-picker {
+    align-items: flex-end;
+}
+
+.task-assignment-picker .form-group {
+    width: min(280px, 100%);
+}
+
 .task-intern-list li {
     justify-content: space-between;
     padding: 12px 0;

@@ -215,7 +215,7 @@ function TaskDefinitionPanel({ userRole, userId }) {
         clearMessages()
 
         if (assignment) {
-            if (!window.confirm(`Remove ${intern.firstName} ${intern.lastName} from ${task.title}?`)) return
+            if (!window.confirm(`Remove ${assignment.internFirstName} ${assignment.internLastName} from ${task.title}?`)) return
             setBusyAction(`remove-${assignment.id}`)
 
             try {
@@ -236,6 +236,7 @@ function TaskDefinitionPanel({ userRole, userId }) {
             await assignTaskToIntern(intern.id, task.id)
             await refreshAssignments()
             setSuccess("Assignment added.")
+            return true
         } catch (err) {
             setError(err.message)
         } finally {
@@ -462,7 +463,7 @@ function TaskDefinitionPanel({ userRole, userId }) {
                                                     <SupervisorTaskManager
                                                         task={task}
                                                         interns={activeInterns}
-                                                        assignments={assignments}
+                                                        assignments={taskAssignments}
                                                         busyAction={busyAction}
                                                         onToggleAssignment={handleSupervisorAssignment}
                                                     />
@@ -627,39 +628,75 @@ function formatTaskDuration(durationMs) {
 }
 
 function SupervisorTaskManager({ task, interns, assignments, busyAction, onToggleAssignment }) {
-    const taskInterns = interns.filter((intern) =>
-        intern.currentProjectId === task.projectId
-        || assignments.some((assignment) => assignment.taskId === task.id && assignment.internId === intern.id)
+    const [showPicker, setShowPicker] = useState(false)
+    const [selectedInternId, setSelectedInternId] = useState("")
+    const assignedInternIds = new Set(assignments.map((assignment) => assignment.internId))
+    const eligibleInterns = interns.filter((intern) =>
+        intern.currentProjectId === task.projectId && !assignedInternIds.has(intern.id)
     )
+    const selectedIntern = eligibleInterns.find((intern) => intern.id === selectedInternId)
 
-    if (taskInterns.length === 0) return <p className="task-empty">No active Interns are assigned to this project.</p>
+    function closePicker() {
+        setShowPicker(false)
+        setSelectedInternId("")
+    }
+
+    async function handleAssign(event) {
+        event.preventDefault()
+        if (selectedIntern && await onToggleAssignment(task, selectedIntern)) closePicker()
+    }
 
     return (
         <div>
-            <h3>Assignments</h3>
-            <ul className="task-intern-list">
-                {taskInterns.map((intern) => {
-                    const assignment = assignments.find((item) => item.taskId === task.id && item.internId === intern.id)
-
-                    return (
-                        <li key={intern.id}>
+            <div className="task-assignments-heading">
+                <h3>Assignments</h3>
+                {!showPicker && (
+                    <button className="project-action" type="button" disabled={Boolean(busyAction)}
+                        onClick={() => setShowPicker(true)}>Assign intern</button>
+                )}
+            </div>
+            {showPicker && (
+                <form className="task-assignment-picker" onSubmit={handleAssign}>
+                    {eligibleInterns.length > 0 ? (
+                        <>
+                            <label className="form-group">
+                                Intern
+                                <select value={selectedIntern?.id ?? ""} disabled={Boolean(busyAction)}
+                                    onChange={(event) => setSelectedInternId(event.target.value)} required>
+                                    <option value="">Choose an intern</option>
+                                    {eligibleInterns.map((intern) => (
+                                        <option key={intern.id} value={intern.id}>{intern.firstName} {intern.lastName}</option>
+                                    ))}
+                                </select>
+                            </label>
+                            <button className="project-action project-action-primary"
+                                disabled={Boolean(busyAction) || !selectedIntern}>Assign</button>
+                        </>
+                    ) : <p className="task-helper">No eligible interns to assign.</p>}
+                    <button className="project-action" type="button" disabled={Boolean(busyAction)}
+                        onClick={closePicker}>Cancel</button>
+                </form>
+            )}
+            {assignments.length === 0 ? <p className="task-helper">No interns assigned to this task.</p> : (
+                <ul className="task-intern-list">
+                    {assignments.map((assignment) => (
+                        <li key={assignment.id}>
                             <div>
-                                <strong>{intern.firstName} {intern.lastName}</strong>
-                                {assignment?.internNote && <small>Note: {assignment.internNote}</small>}
-                                {!assignment && intern.currentProjectName && <small>Currently in {intern.currentProjectName}</small>}
+                                <strong>{assignment.internFirstName} {assignment.internLastName}</strong>
+                                {assignment.internNote && <small>Note: {assignment.internNote}</small>}
                             </div>
                             <button
                                 className="project-action"
                                 type="button"
                                 disabled={Boolean(busyAction)}
-                                onClick={() => onToggleAssignment(task, intern, assignment)}
+                                onClick={() => onToggleAssignment(task, null, assignment)}
                             >
-                                {assignment ? "Remove" : "Assign"}
+                                Remove
                             </button>
                         </li>
-                    )
-                })}
-            </ul>
+                    ))}
+                </ul>
+            )}
         </div>
     )
 }

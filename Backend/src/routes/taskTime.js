@@ -134,7 +134,19 @@ taskTimeRouter.post("/entries", requireIntern, (req, res) => {
     res.status(result.status).send(result.body)
 })
 
-taskTimeRouter.put("/management/entries/:entryId", requireSupervisor, (req, res) => {
+taskTimeRouter.put("/management/entries/:entryId", requireSupervisor, updateTaskTimeEntry)
+taskTimeRouter.put("/entries/:entryId", updateTaskTimeEntry)
+
+function updateTaskTimeEntry(req, res) {
+    if (typeof req.user?.id !== "string") {
+        return res.status(401).send({ error: "Unauthorized" })
+    }
+    const account = db.prepare("SELECT id, role, is_enabled FROM user_account WHERE id = ?").get(req.user.id)
+    if (!account) return res.status(401).send({ error: "Unauthorized" })
+    if (!account.is_enabled || (account.role !== "INTERN" && account.role !== "SUPERVISOR")) {
+        return res.status(403).send({ error: "Only enabled Interns and Supervisors can edit task time." })
+    }
+
     const { values, fieldErrors } = validateEntry(req.body, false)
     if (Object.keys(fieldErrors).length) {
         return res.status(400).send({ error: "Please correct the task time fields.", fieldErrors })
@@ -148,7 +160,9 @@ taskTimeRouter.put("/management/entries/:entryId", requireSupervisor, (req, res)
             JOIN internship i ON i.id = a.internship_id
             WHERE e.id = ?
         `).get(req.params.entryId)
-        if (!entry) return { status: 404, body: { error: "Task time entry not found." } }
+        if (!entry || (account.role === "INTERN" && account.id !== entry.internId)) {
+            return { status: 404, body: { error: "Task time entry not found." } }
+        }
         if (!entry.endedAt) return { status: 409, body: { error: "Only completed time entries can be corrected." } }
         if (entry.startedAt !== req.body.expectedStartedAt || entry.endedAt !== req.body.expectedEndedAt) {
             return { status: 409, body: { error: "This time entry changed. Reopen task history before editing." } }
@@ -163,7 +177,7 @@ taskTimeRouter.put("/management/entries/:entryId", requireSupervisor, (req, res)
     }).immediate()
 
     res.status(result.status).send(result.body)
-})
+}
 
 taskTimeRouter.get("/tasks/:taskId/history", (req, res) => {
     if (typeof req.user?.id !== "string") {

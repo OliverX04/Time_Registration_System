@@ -19,7 +19,7 @@ export async function getTaskTimeHistory(taskId) {
 }
 
 export function correctTaskTimeEntry(entry, startedAt, endedAt) {
-    return taskTimeRequest(`/task-time/management/entries/${encodeURIComponent(entry.id)}`, {
+    return taskTimeRequest(`/task-time/entries/${encodeURIComponent(entry.id)}`, {
         method: "PUT",
         body: JSON.stringify({
             startedAt, endedAt,

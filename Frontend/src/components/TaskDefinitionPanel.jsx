@@ -20,7 +20,7 @@ import {
 } from "../services/taskTimeService.js"
 import "../styles/taskTime.css"
 
-function TaskDefinitionPanel({ userRole }) {
+function TaskDefinitionPanel({ userRole, userId }) {
     const isSupervisor = userRole === "SUPERVISOR"
     const [projects, setProjects] = useState([])
     const [selectedProjectId, setSelectedProjectId] = useState("")
@@ -477,7 +477,8 @@ function TaskDefinitionPanel({ userRole }) {
                                                 history={taskHistory}
                                                 isLoading={isHistoryLoading}
                                                 error={historyError}
-                                                canCorrect={isSupervisor}
+                                                isSupervisor={isSupervisor}
+                                                internId={userRole === "INTERN" ? userId : null}
                                                 onCorrected={() => handleToggleTaskHistory(task, true)}
                                             />
                                         )}
@@ -507,7 +508,7 @@ function TaskFields({ title, description, setTitle, setDescription, disabled, pr
     )
 }
 
-function TaskHistoryPanel({ history, isLoading, error, canCorrect, onCorrected }) {
+function TaskHistoryPanel({ history, isLoading, error, isSupervisor, internId, onCorrected }) {
     const [editingEntryId, setEditingEntryId] = useState(null)
     if (isLoading) return <div className="task-history-panel"><p className="task-helper">Loading task history...</p></div>
     if (error) return <div className="task-history-panel"><p className="error-message" role="alert">{error}</p></div>
@@ -544,12 +545,14 @@ function TaskHistoryPanel({ history, isLoading, error, canCorrect, onCorrected }
                                 {group.entries.map((entry) => (
                                     <article className="task-history-entry" key={entry.id}>
                                         <strong>{entry.internFirstName} {entry.internLastName}</strong>
-                                        <span>{formatTaskTime(entry.startedAt)}–{entry.endedAt ? formatTaskTime(entry.endedAt) : "In progress"}</span>
+                                        <div className="task-history-entry-time">
+                                            <span>{formatTaskTime(entry.startedAt)}–{entry.endedAt ? formatTaskTime(entry.endedAt) : "In progress"}</span>
+                                            {(isSupervisor || entry.internId === internId) && entry.endedAt && (
+                                                <button className="project-action" type="button" disabled={Boolean(editingEntryId)}
+                                                    onClick={() => setEditingEntryId(entry.id)}>Edit</button>
+                                            )}
+                                        </div>
                                         <span>{entry.durationMs === null ? "—" : formatTaskDuration(entry.durationMs)}</span>
-                                        {canCorrect && entry.endedAt && (
-                                            <button className="project-action" type="button" disabled={Boolean(editingEntryId)}
-                                                onClick={() => setEditingEntryId(entry.id)}>Correct time</button>
-                                        )}
                                         {editingEntryId === entry.id && <TaskTimeCorrectionForm entry={entry}
                                             onCancel={() => setEditingEntryId(null)} onSaved={() => {
                                                 setEditingEntryId(null)

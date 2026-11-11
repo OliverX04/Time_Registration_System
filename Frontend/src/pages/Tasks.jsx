@@ -10,7 +10,7 @@ function Tasks() {
             <div className="auth-card dashboard-card">
                 <h1>Tasks</h1>
                 <p className="auth-subtitle">Create, edit, assign and register time without jumping between pages.</p>
-                <TaskDefinitionPanel userRole={user?.role} />
+                <TaskDefinitionPanel userRole={user?.role} userId={user?.id} />
             </div>
         </AppLayout>
     )

@@ -41,7 +41,7 @@ export default function TaskTimeCorrectionForm({ entry, onCancel, onSaved }) {
                 startLabel="Start time" endLabel="End time" disabled={busy} />
             {error && <p className="error-message" role="alert">{error}</p>}
             <div className="attendance-form-actions">
-                <button className="project-action project-action-primary" disabled={busy}>Save correction</button>
+                <button className="project-action project-action-primary" disabled={busy}>Save changes</button>
                 <button className="project-action" type="button" disabled={busy} onClick={onCancel}>Cancel</button>
             </div>
         </form>

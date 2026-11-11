@@ -31,13 +31,7 @@ function InternManagementPanel() {
     const filteredInterns = useMemo(() => {
         const normalizedSearch = search.trim().toLocaleLowerCase()
         return interns.filter((intern) => {
-            const status = intern.internshipId
-                ? "active"
-                : intern.isEnabled
-                    ? "awaiting"
-                    : intern.lastOutcome
-                        ? "former"
-                        : "inactive"
+            const status = getInternStatus(intern)
             const matchesStatus = statusFilter === "all" || status === statusFilter
             const searchableText = [
                 intern.firstName,
@@ -183,7 +177,6 @@ function InternManagementPanel() {
                         <option value="active">Active</option>
                         <option value="awaiting">Awaiting activation</option>
                         <option value="former">Former interns</option>
-                        <option value="inactive">Inactive</option>
                     </select>
                 </label>
                 <p className="intern-result-count">{filteredInterns.length} interns</p>
@@ -310,14 +303,8 @@ function InternManagementPanel() {
                                                 )}
                                             </td>
                                             <td>
-                                                <span className={intern.internshipId ? "intern-active" : intern.isEnabled ? "intern-awaiting" : "intern-inactive"}>
-                                                    {intern.internshipId
-                                                        ? "Active"
-                                                        : intern.isEnabled
-                                                            ? "Awaiting activation"
-                                                            : intern.lastOutcome
-                                                                ? `Former · ${intern.lastOutcome.toLowerCase()}`
-                                                                : "Inactive"}
+                                                <span className={statusClassName(getInternStatus(intern))}>
+                                                    {statusLabel(getInternStatus(intern), intern.lastOutcome)}
                                                 </span>
                                                 {!intern.internshipId && intern.lastEndedAt && (
                                                     <div>{formatDate(intern.lastEndedAt)}</div>
@@ -400,6 +387,24 @@ function todayDate() {
     }).formatToParts(new Date())
     const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]))
     return `${values.year}-${values.month}-${values.day}`
+}
+
+function getInternStatus(intern) {
+    if (intern.internshipId) return "active"
+    if (intern.lastOutcome) return "former"
+    return "awaiting"
+}
+
+function statusClassName(status) {
+    if (status === "active") return "intern-active"
+    if (status === "former") return "intern-inactive"
+    return "intern-awaiting"
+}
+
+function statusLabel(status, lastOutcome) {
+    if (status === "active") return "Active"
+    if (status === "former") return `Former · ${lastOutcome.toLowerCase()}`
+    return "Awaiting activation"
 }
 
 function formatDate(value) {

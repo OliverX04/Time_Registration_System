@@ -22,8 +22,8 @@ export default function TaskTimeCorrectionForm({ entry, onCancel, onSaved }) {
         setBusy(true)
         try {
             await correctTaskTimeEntry(entry,
-                readCorrectionTime(data.get("start"), entry.startedAt),
-                readCorrectionTime(data.get("end"), entry.endedAt))
+                readCorrectionTime(data, "start", entry.startedAt),
+                readCorrectionTime(data, "end", entry.endedAt))
         } catch (err) {
             if (mounted.current) {
                 setError(Object.values(err.fieldErrors ?? {}).join(" ") || err.message)

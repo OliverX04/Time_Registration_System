@@ -19,8 +19,8 @@ export default function AttendanceRequestForm({ session, internships, onCancel, 
                 sessionId: session?.id,
                 expectedCheckedInAt: session?.checkedInAt,
                 expectedCheckedOutAt: session?.checkedOutAt,
-                checkedInAt: readCorrectionTime(data.get("start"), session?.checkedInAt),
-                checkedOutAt: readCorrectionTime(data.get("end"), session?.checkedOutAt),
+                checkedInAt: readCorrectionTime(data, "start", session?.checkedInAt),
+                checkedOutAt: readCorrectionTime(data, "end", session?.checkedOutAt),
                 reason: data.get("reason")
             })
         } catch (err) {

@@ -35,6 +35,7 @@
 }
 
 .attendance-history-card {
+    position: relative;
     container-type: inline-size;
     min-width: 0;
     overflow-wrap: anywhere;
@@ -104,10 +105,19 @@
     font-size: 14px;
 }
 
-.attendance-entry-status {
-    display: grid;
-    justify-items: start;
-    gap: 6px;
+.attendance-request-link {
+    text-decoration: none;
+}
+
+.attendance-history-heading .attendance-reload {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    font-size: 18px;
+    line-height: 1;
 }
 
 .attendance-entry-label {
@@ -119,6 +129,10 @@
 }
 
 @container (max-width: 34rem) {
+    .attendance-history-heading {
+        padding-top: 20px;
+    }
+
     .attendance-history-card .attendance-entry-headings {
         display: none;
     }

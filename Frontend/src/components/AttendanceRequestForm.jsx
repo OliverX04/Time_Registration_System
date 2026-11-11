@@ -1,11 +1,16 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { submitAttendanceCorrection } from "../services/attendanceService.js"
 import CorrectionTimes from "./CorrectionTimes.jsx"
 import { readCorrectionTime } from "../services/correctionTimes.js"
 
-export default function AttendanceRequestForm({ session, internships, onCancel, onSubmitted }) {
-    const [busy, setBusy] = useState(false)
+export default function AttendanceRequestForm({ session, internships, busy, setBusy, onCancel, onSubmitted }) {
     const [error, setError] = useState("")
+    const isMounted = useRef(false)
+
+    useEffect(() => {
+        isMounted.current = true
+        return () => { isMounted.current = false }
+    }, [])
 
     async function submit(event) {
         event.preventDefault()
@@ -24,11 +29,12 @@ export default function AttendanceRequestForm({ session, internships, onCancel, 
                 reason: data.get("reason")
             })
         } catch (err) {
+            if (!isMounted.current) return
             setError(Object.values(err.fieldErrors ?? {}).join(" ") || err.message)
             setBusy(false)
             return
         }
-        onSubmitted()
+        if (isMounted.current) onSubmitted()
     }
 
     return (
@@ -51,7 +57,9 @@ export default function AttendanceRequestForm({ session, internships, onCancel, 
             </label>
             {error && <p className="error-message" role="alert">{error}</p>}
             <div className="attendance-form-actions">
-                <button className="attendance-action attendance-action-primary" disabled={busy}>Submit request</button>
+                <button className="attendance-action attendance-action-primary" disabled={busy}>
+                    {busy ? "Submitting…" : "Submit request"}
+                </button>
                 <button className="attendance-action" type="button" disabled={busy} onClick={onCancel}>Cancel</button>
             </div>
         </form>

@@ -15,9 +15,8 @@ export function CorrectionDetails({ request }) {
     )
 }
 
-export default function AttendanceCorrectionRequests({ onApproved, disabled }) {
+export default function AttendanceCorrectionRequests({ onApproved, disabled, busy, setBusy }) {
     const [requests, setRequests] = useState(null)
-    const [busy, setBusy] = useState(false)
     const [error, setError] = useState("")
     const [version, setVersion] = useState(0)
 
@@ -35,14 +34,15 @@ export default function AttendanceCorrectionRequests({ onApproved, disabled }) {
         return () => { active = false }
     }, [version])
 
-    async function review(id, decision) {
+    async function review(request, decision) {
+        if (busy || disabled) return
         setBusy(true)
         setError("")
         try {
-            await reviewAttendanceCorrection(id, decision)
-            setRequests((current) => current.filter((request) => request.id !== id))
+            await reviewAttendanceCorrection(request.id, decision)
+            setRequests((current) => current.filter((item) => item.id !== request.id))
             window.dispatchEvent(new Event(attendanceQueueChanged))
-            if (decision === "APPROVED") onApproved()
+            if (decision === "APPROVED") onApproved(request.internId)
         } catch (err) {
             setError(err.message)
         } finally {
@@ -72,9 +72,9 @@ export default function AttendanceCorrectionRequests({ onApproved, disabled }) {
                     <CorrectionDetails request={request} />
                     <div className="attendance-form-actions">
                         <button className="attendance-action attendance-action-primary" type="button"
-                            disabled={busy || disabled} onClick={() => review(request.id, "APPROVED")}>Approve</button>
+                            disabled={busy || disabled} onClick={() => review(request, "APPROVED")}>Approve</button>
                         <button className="attendance-action" type="button"
-                            disabled={busy || disabled} onClick={() => review(request.id, "REJECTED")}>Reject</button>
+                            disabled={busy || disabled} onClick={() => review(request, "REJECTED")}>Reject</button>
                     </div>
                 </article>
             ))}

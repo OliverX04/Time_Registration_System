@@ -13,6 +13,7 @@ export default function AttendanceCorrectionRequest() {
     const [error, setError] = useState("")
     const [requestType, setRequestType] = useState("existing")
     const [selection, setSelection] = useState("")
+    const [busy, setBusy] = useState(false)
     const navigate = useNavigate()
 
     useEffect(() => {
@@ -45,7 +46,7 @@ export default function AttendanceCorrectionRequest() {
                 {history?.internships.length > 0 && (
                     <label className="form-group">
                         What would you like to do?
-                        <select value={requestType} onChange={(event) => {
+                        <select value={requestType} disabled={busy} onChange={(event) => {
                             setRequestType(event.target.value)
                             setSelection("")
                         }}>
@@ -57,7 +58,7 @@ export default function AttendanceCorrectionRequest() {
                 {requestType === "existing" && history?.internships.length > 0 && (
                     <label className="form-group">
                         Attendance entry
-                        <select value={selection} disabled={sessionsByDay.size === 0}
+                        <select value={selection} disabled={busy || sessionsByDay.size === 0}
                             onChange={(event) => setSelection(event.target.value)}>
                             <option value="">{sessionsByDay.size ? "Choose a day and time" : "No attendance entries yet"}</option>
                             {[...sessionsByDay].map(([day, sessions]) => <optgroup key={day} label={day}>
@@ -71,6 +72,7 @@ export default function AttendanceCorrectionRequest() {
                 )}
                 {(requestType === "missing" || session) && (
                     <AttendanceRequestForm key={session?.id ?? requestType} session={session} internships={history.internships}
+                        busy={busy} setBusy={setBusy}
                         onCancel={() => navigate(historyPath)}
                         onSubmitted={() => navigate(historyPath, { replace: true, state: { correctionSubmitted: true } })} />
                 )}

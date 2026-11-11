@@ -146,7 +146,7 @@ test("a Supervisor can correct a completed entry without changing its assignment
     db.prepare("DELETE FROM task_time_entry WHERE id IN (?, ?)").run("correction-target", "correction-neighbor")
 })
 
-test("Interns can edit only their own completed task time, while Supervisors can edit any entry", async () => {
+test("Interns can edit their own completed task time in their current project", async () => {
     const expectedStartedAt = "2026-10-10T09:00:00.000Z"
     const expectedEndedAt = "2026-10-10T10:00:00.000Z"
     const endedAt = "2026-10-10T10:15:00.000Z"
@@ -162,12 +162,18 @@ test("Interns can edit only their own completed task time, while Supervisors can
         assert.equal(result.status, 200)
         assert.equal(result.body.entry.endedAt, endedAt)
         assert.equal((await request("PUT", route, body)).status, 409)
-        const supervisorEdit = await request("PUT", route, {
+
+        db.prepare("UPDATE project_assignment SET ended_at = ? WHERE id = ?")
+            .run("2026-10-15T08:00:00.000Z", "project-assignment")
+        const correction = {
             ...body, expectedEndedAt: endedAt, endedAt: expectedEndedAt
-        }, supervisorToken)
+        }
+        assert.equal((await request("PUT", route, correction)).status, 404)
+        const supervisorEdit = await request("PUT", route, correction, supervisorToken)
         assert.equal(supervisorEdit.status, 200)
         assert.equal(supervisorEdit.body.entry.endedAt, expectedEndedAt)
     } finally {
+        db.prepare("UPDATE project_assignment SET ended_at = NULL WHERE id = ?").run("project-assignment")
         db.prepare("DELETE FROM task_time_entry WHERE id = ?").run("direct-edit")
     }
 })

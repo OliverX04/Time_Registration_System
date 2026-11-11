@@ -154,13 +154,16 @@ function updateTaskTimeEntry(req, res) {
 
     const result = db.transaction(() => {
         const entry = db.prepare(`
-            SELECT e.id, e.started_at AS startedAt, e.ended_at AS endedAt, i.intern_id AS internId
+            SELECT e.id, e.started_at AS startedAt, e.ended_at AS endedAt,
+                i.intern_id AS internId, t.project_id AS projectId
             FROM task_time_entry e
             JOIN task_assignment a ON a.id = e.task_assignment_id
             JOIN internship i ON i.id = a.internship_id
+            JOIN task t ON t.id = a.task_id
             WHERE e.id = ?
         `).get(req.params.entryId)
-        if (!entry || (account.role === "INTERN" && account.id !== entry.internId)) {
+        if (!entry || (account.role === "INTERN"
+            && (account.id !== entry.internId || !canInternViewTaskHistory(account.id, entry)))) {
             return { status: 404, body: { error: "Task time entry not found." } }
         }
         if (!entry.endedAt) return { status: 409, body: { error: "Only completed time entries can be corrected." } }

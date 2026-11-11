@@ -320,7 +320,7 @@ function findIntern(userId) {
 
 function listCorrections(internId = null, reviewed = false) {
     return db.prepare(`
-        SELECT r.id, r.session_id AS sessionId, r.original_in AS originalIn, r.original_out AS originalOut,
+        SELECT r.id, i.intern_id AS internId, r.session_id AS sessionId, r.original_in AS originalIn, r.original_out AS originalOut,
             r.proposed_in AS proposedIn, r.proposed_out AS proposedOut, r.reason, r.status,
             r.created_at AS createdAt, r.reviewed_at AS reviewedAt,
             u.first_name AS firstName, u.last_name AS lastName, u.email

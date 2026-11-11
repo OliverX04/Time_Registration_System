@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Link, useNavigate } from "react-router-dom"
+import { Link, useLocation, useNavigate } from "react-router-dom"
 import { loginUser } from "../services/authService.js"
 
 function Login() {
@@ -8,6 +8,7 @@ function Login() {
     const [error, setError] = useState("")
 
     const navigate = useNavigate()
+    const { state } = useLocation()
 
     async function handleLogin(event) {
         event.preventDefault()
@@ -37,6 +38,12 @@ function Login() {
                 <p className="auth-subtitle">
                     Log in to access your account.
                 </p>
+
+                {state?.passwordChanged && (
+                    <p className="success-message" role="status">
+                        Password changed. Log in with your new password.
+                    </p>
+                )}
 
                 <form onSubmit={handleLogin}>
                     <div className="form-group">

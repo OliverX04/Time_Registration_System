@@ -1,6 +1,7 @@
+import PresenceSchedule from "./PresenceSchedule.jsx"
 import "../styles/internManagement.css"
 
-import { useEffect, useMemo, useState } from "react"
+import { Fragment, useEffect, useMemo, useRef, useState } from "react"
 import {
     getInterns,
     activateIntern,
@@ -10,6 +11,7 @@ import {
 import { getProjects } from "../services/projectService.js"
 
 function InternManagementPanel() {
+    const [scheduleIntern, setScheduleIntern] = useState(null)
     const pageSize = 20
     const [interns, setInterns] = useState([])
     const [error, setError] = useState("")
@@ -22,17 +24,14 @@ function InternManagementPanel() {
     const [page, setPage] = useState(1)
     const [deactivationCandidate, setDeactivationCandidate] = useState(null)
     const [deactivationOutcome, setDeactivationOutcome] = useState("COMPLETED")
+    const [activationCandidate, setActivationCandidate] = useState(null)
+    const [activationStartDate, setActivationStartDate] = useState("")
+    const [activationError, setActivationError] = useState("")
 
     const filteredInterns = useMemo(() => {
         const normalizedSearch = search.trim().toLocaleLowerCase()
         return interns.filter((intern) => {
-            const status = intern.internshipId
-                ? "active"
-                : intern.isEnabled
-                    ? "awaiting"
-                    : intern.lastOutcome
-                        ? "former"
-                        : "inactive"
+            const status = getInternStatus(intern)
             const matchesStatus = statusFilter === "all" || status === statusFilter
             const searchableText = [
                 intern.firstName,
@@ -88,23 +87,31 @@ function InternManagementPanel() {
         }
     }
 
-    async function handleActivate(intern) {
+    function handleActivate(intern) {
         if (busy) return
+        setError("")
+        setMessage("")
+        setActivationError("")
+        setActivationStartDate(todayDate())
+        setActivationCandidate(intern)
+    }
 
-        const confirmed = window.confirm(
-            `Activate ${intern.firstName} ${intern.lastName}?`
-        )
-
-        if (!confirmed) return
+    async function confirmActivate(event) {
+        event.preventDefault()
+        if (busy || !activationCandidate) return
 
         setBusy(true)
-        setError("")
-
+        setActivationError("")
+        let activated = false
         try {
-            await activateIntern(intern.id)
+            await activateIntern(activationCandidate.id, activationStartDate)
+            activated = true
+            setActivationCandidate(null)
+            setMessage(`${activationCandidate.firstName} ${activationCandidate.lastName} was activated.`)
             setInterns(await getInterns())
         } catch (err) {
-            setError(err.message)
+            if (activated) setError("The Intern was activated, but the list could not be refreshed. Reload the page to see the updated list.")
+            else setActivationError(err.fieldErrors?.startDate || err.message)
         } finally {
             setBusy(false)
         }
@@ -170,7 +177,6 @@ function InternManagementPanel() {
                         <option value="active">Active</option>
                         <option value="awaiting">Awaiting activation</option>
                         <option value="former">Former interns</option>
-                        <option value="inactive">Inactive</option>
                     </select>
                 </label>
                 <p className="intern-result-count">{filteredInterns.length} interns</p>
@@ -182,6 +188,18 @@ function InternManagementPanel() {
                 </p>
             )}
             {message && <p role="status">{message}</p>}
+
+
+
+            {activationCandidate && <ActivationDialog
+                intern={activationCandidate}
+                startDate={activationStartDate}
+                setStartDate={setActivationStartDate}
+                busy={busy}
+                error={activationError}
+                onSubmit={confirmActivate}
+                onCancel={() => setActivationCandidate(null)}
+            />}
 
             {deactivationCandidate && (
                 <div className="intern-dialog-backdrop">
@@ -241,66 +259,78 @@ function InternManagementPanel() {
                             </thead>
                             <tbody>
                                 {visibleInterns.map((intern) => (
-                                    <tr key={intern.id}>
-                                        <th scope="row">
-                                            <strong>{intern.firstName} {intern.lastName}</strong>
-                                            <span>{intern.email}</span>
-                                        </th>
-                                        <td>
-                                            <span>{intern.currentProjectName || intern.lastProjectName || "Unassigned"}</span>
-                                            {Boolean(intern.internshipId && intern.isEnabled) && (
-                                                <div className="intern-project-controls">
-                                                    <select
-                                                        aria-label={`Project for ${intern.firstName} ${intern.lastName}`}
-                                                        value={selectedProjects[intern.id] ?? intern.currentProjectId ?? ""}
-                                                        disabled={busy}
-                                                        onChange={(event) => setSelectedProjects((current) => ({ ...current, [intern.id]: event.target.value }))}
-                                                    >
-                                                        <option value="">Choose a project</option>
-                                                        {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
-                                                    </select>
-                                                    <button
-                                                        type="button"
-                                                        className="intern-button activate-button"
-                                                        disabled={busy || !selectedProjects[intern.id] || selectedProjects[intern.id] === intern.currentProjectId}
-                                                        onClick={() => handleProjectAssignment(intern, selectedProjects[intern.id])}
-                                                    >
-                                                        {intern.currentProjectId ? "Change" : "Assign"}
-                                                    </button>
-                                                    {intern.currentProjectId && (
-                                                        <button type="button" className="intern-button deactivate-button" disabled={busy} onClick={() => handleProjectAssignment(intern, null)}>
-                                                            End
+                                    <Fragment key={intern.id}>
+                                        <tr>
+                                            <th scope="row">
+                                                <strong>{intern.firstName} {intern.lastName}</strong>
+                                                <span>{intern.email}</span>
+                                            </th>
+                                            <td>
+                                                <span>
+                                                    {intern.currentProjectName || (!intern.internshipId && intern.lastEndedAt && intern.lastProjectName
+                                                        ? `Last project: ${intern.lastProjectName}`
+                                                        : "Unassigned")}
+                                                </span>
+                                                {Boolean(intern.internshipId && intern.isEnabled) && (
+                                                    <div className="intern-project-controls">
+                                                        <select
+                                                            aria-label={`Project for ${intern.firstName} ${intern.lastName}`}
+                                                            value={selectedProjects[intern.id] ?? intern.currentProjectId ?? ""}
+                                                            disabled={busy}
+                                                            onChange={(event) => setSelectedProjects((current) => ({ ...current, [intern.id]: event.target.value }))}
+                                                        >
+                                                            <option value="">Unassigned</option>
+                                                            {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
+                                                        </select>
+                                                        <button
+                                                            type="button"
+                                                            className="intern-button activate-button"
+                                                            disabled={
+                                                                busy ||
+                                                                (selectedProjects[intern.id] ?? intern.currentProjectId ?? "") ===
+                                                                (intern.currentProjectId ?? "")
+                                                            }
+                                                            onClick={() =>
+                                                                handleProjectAssignment(
+                                                                    intern,
+                                                                    (selectedProjects[intern.id] ?? intern.currentProjectId ?? "") || null
+                                                                )
+                                                            }
+                                                        >
+                                                            Save
                                                         </button>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </td>
-                                        <td>
-                                            <span className={intern.internshipId ? "intern-active" : intern.isEnabled ? "intern-awaiting" : "intern-inactive"}>
-                                                {intern.internshipId
-                                                    ? "Active"
-                                                    : intern.isEnabled
-                                                        ? "Awaiting activation"
-                                                        : intern.lastOutcome
-                                                            ? `Former · ${intern.lastOutcome.toLowerCase()}`
-                                                            : "Inactive"}
-                                            </span>
-                                            {!intern.internshipId && intern.lastEndedAt && (
-                                                <div>{formatDate(intern.lastEndedAt)}</div>
-                                            )}
-                                        </td>
-                                        <td>
-                                            {intern.internshipId ? (
-                                                <button type="button" className="intern-button deactivate-button" disabled={busy} onClick={() => handleDeactivate(intern)}>
-                                                    Deactivate
-                                                </button>
-                                            ) : (
-                                                <button type="button" className="intern-button activate-button" disabled={busy} onClick={() => handleActivate(intern)}>
-                                                    Activate
-                                                </button>
-                                            )}
-                                        </td>
-                                    </tr>
+                                                    </div>
+                                                )}
+                                            </td>
+                                            <td>
+                                                <span className={statusClassName(getInternStatus(intern))}>
+                                                    {statusLabel(getInternStatus(intern), intern.lastOutcome)}
+                                                </span>
+                                                {!intern.internshipId && intern.lastEndedAt && (
+                                                    <div>{formatDate(intern.lastEndedAt)}</div>
+                                                )}
+                                            </td>
+                                            <td>
+                                                {Boolean(intern.isEnabled) && <button type="button" className="intern-button activate-button" disabled={busy} onClick={() => setScheduleIntern(intern)}>Schedule</button>}
+                                                {intern.internshipId ? (
+                                                    <button type="button" className="intern-button deactivate-button" disabled={busy} onClick={() => handleDeactivate(intern)}>
+                                                        Deactivate
+                                                    </button>
+                                                ) : (
+                                                    <button type="button" className="intern-button activate-button" disabled={busy} onClick={() => handleActivate(intern)}>
+                                                        Activate
+                                                    </button>
+                                                )}
+                                            </td>
+                                        </tr>
+                                        {scheduleIntern?.id === intern.id && <tr className="intern-schedule-row"><td colSpan={4}>
+                                            {scheduleIntern && <PresenceSchedule key={scheduleIntern.id} intern={scheduleIntern} onCancel={() => setScheduleIntern(null)} onSaved={async () => {
+                                                setInterns(await getInterns())
+                                                setScheduleIntern(null)
+                                                setMessage("Presence schedule saved.")
+                                            }} />}
+                                        </td></tr>}
+                                    </Fragment>
                                 ))}
                             </tbody>
                         </table>
@@ -319,6 +349,62 @@ function InternManagementPanel() {
             )}
         </section>
     )
+}
+
+function ActivationDialog({ intern, startDate, setStartDate, busy, error, onSubmit, onCancel }) {
+    const dialog = useRef(null)
+
+    useEffect(() => {
+        dialog.current.showModal()
+    }, [])
+
+    return (
+        <dialog className="intern-activation-dialog" ref={dialog} aria-labelledby="intern-activation-title"
+            onCancel={(event) => { event.preventDefault(); if (!busy) onCancel() }}>
+            <form onSubmit={onSubmit}>
+                <h3 id="intern-activation-title">Activate {intern.firstName} {intern.lastName}?</h3>
+                <p>Choose the first day of their internship.</p>
+                <label htmlFor="intern-activation-start">Internship start date</label>
+                <input id="intern-activation-start" type="date" value={startDate} max={todayDate()} required disabled={busy}
+                    aria-describedby="intern-activation-hint" aria-invalid={Boolean(error)}
+                    onChange={(event) => setStartDate(event.target.value)} />
+                <small id="intern-activation-hint">Use the actual first day, even if it was earlier this week. Attendance can then be added for the missed days.</small>
+                {error && <p className="intern-error-message" role="alert">{error}</p>}
+                <div className="intern-deactivation-actions">
+                    <button type="button" className="intern-dialog-cancel" disabled={busy} onClick={onCancel}>Cancel</button>
+                    <button type="submit" className="intern-button activate-button" disabled={busy}>
+                        {busy ? "Activating..." : "Activate intern"}
+                    </button>
+                </div>
+            </form>
+        </dialog>
+    )
+}
+
+function todayDate() {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Europe/Copenhagen", year: "numeric", month: "2-digit", day: "2-digit"
+    }).formatToParts(new Date())
+    const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]))
+    return `${values.year}-${values.month}-${values.day}`
+}
+
+function getInternStatus(intern) {
+    if (intern.internshipId) return "active"
+    if (intern.lastOutcome) return "former"
+    return "awaiting"
+}
+
+function statusClassName(status) {
+    if (status === "active") return "intern-active"
+    if (status === "former") return "intern-inactive"
+    return "intern-awaiting"
+}
+
+function statusLabel(status, lastOutcome) {
+    if (status === "active") return "Active"
+    if (status === "former") return `Former · ${lastOutcome.toLowerCase()}`
+    return "Awaiting activation"
 }
 
 function formatDate(value) {

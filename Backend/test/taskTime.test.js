@@ -125,6 +125,59 @@ async function request(method, route, body, token = internToken) {
     return { status: response.status, body: await response.json() }
 }
 
+test("a Supervisor can correct a completed entry without changing its assignment or overlapping another task", async () => {
+    const insert = db.prepare("INSERT INTO task_time_entry (id, task_assignment_id, started_at, ended_at) VALUES (?, ?, ?, ?)")
+    const expectedStartedAt = "2026-10-10T09:00:00.000Z"
+    const expectedEndedAt = "2026-10-10T10:00:00.000Z"
+    const startedAt = "2026-10-10T09:30:00.000Z"
+    const endedAt = "2026-10-10T11:00:00.000Z"
+    insert.run("correction-target", "assignment-a", expectedStartedAt, expectedEndedAt)
+    insert.run("correction-neighbor", "assignment-b", endedAt, "2026-10-10T12:00:00.000Z")
+    const route = "/task-time/management/entries/correction-target"
+    const body = { startedAt, endedAt, expectedStartedAt, expectedEndedAt, taskAssignmentId: "assignment-b" }
+    assert.equal((await request("PUT", route, body)).status, 403)
+    assert.equal((await request("PUT", route, { ...body, endedAt: "2026-10-10T11:30:00.000Z" }, supervisorToken)).status, 409)
+    const result = await request("PUT", route, body, supervisorToken)
+    assert.equal(result.status, 200)
+    assert.equal(result.body.entry.taskAssignmentId, "assignment-a")
+    assert.equal(result.body.entry.startedAt, startedAt)
+    assert.equal(result.body.entry.endedAt, endedAt)
+    assert.equal((await request("PUT", route, body, supervisorToken)).status, 409)
+    db.prepare("DELETE FROM task_time_entry WHERE id IN (?, ?)").run("correction-target", "correction-neighbor")
+})
+
+test("Interns can edit their own completed task time in their current project", async () => {
+    const expectedStartedAt = "2026-10-10T09:00:00.000Z"
+    const expectedEndedAt = "2026-10-10T10:00:00.000Z"
+    const endedAt = "2026-10-10T10:15:00.000Z"
+    const route = "/task-time/entries/direct-edit"
+    const body = { startedAt: expectedStartedAt, endedAt, expectedStartedAt, expectedEndedAt }
+    db.prepare("INSERT INTO task_time_entry (id, task_assignment_id, started_at, ended_at) VALUES (?, ?, ?, ?)")
+        .run("direct-edit", "assignment-a", expectedStartedAt, expectedEndedAt)
+
+    try {
+        assert.equal((await request("PUT", route, body, null)).status, 401)
+        assert.equal((await request("PUT", route, body, managedInternToken)).status, 404)
+        const result = await request("PUT", route, body)
+        assert.equal(result.status, 200)
+        assert.equal(result.body.entry.endedAt, endedAt)
+        assert.equal((await request("PUT", route, body)).status, 409)
+
+        db.prepare("UPDATE project_assignment SET ended_at = ? WHERE id = ?")
+            .run("2026-10-15T08:00:00.000Z", "project-assignment")
+        const correction = {
+            ...body, expectedEndedAt: endedAt, endedAt: expectedEndedAt
+        }
+        assert.equal((await request("PUT", route, correction)).status, 404)
+        const supervisorEdit = await request("PUT", route, correction, supervisorToken)
+        assert.equal(supervisorEdit.status, 200)
+        assert.equal(supervisorEdit.body.entry.endedAt, expectedEndedAt)
+    } finally {
+        db.prepare("UPDATE project_assignment SET ended_at = NULL WHERE id = ?").run("project-assignment")
+        db.prepare("DELETE FROM task_time_entry WHERE id = ?").run("direct-edit")
+    }
+})
+
 test("task time routes require an enabled Intern", async () => {
     assert.equal((await request("GET", "/task-time/assignments", undefined, null)).status, 401)
     assert.equal((await request("GET", "/task-time/assignments", undefined, supervisorToken)).status, 403)

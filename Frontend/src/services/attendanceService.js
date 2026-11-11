@@ -9,6 +9,26 @@ export async function getAttendanceHistory() {
     return attendanceRequest("/attendance/history")
 }
 
+export function submitAttendanceCorrection(values) {
+    return attendanceRequest("/attendance/correction-requests", {
+        method: "POST",
+        body: JSON.stringify(values)
+    })
+}
+
+export const attendanceQueueChanged = "attendance-queue-changed"
+
+export function getAttendanceCorrectionRequests(reviewed = false) {
+    return attendanceRequest(`/attendance/management/correction-requests${reviewed ? "?reviewed=true" : ""}`)
+}
+
+export function reviewAttendanceCorrection(id, decision) {
+    return attendanceRequest(`/attendance/management/correction-requests/${encodeURIComponent(id)}/review`, {
+        method: "POST",
+        body: JSON.stringify({ decision })
+    })
+}
+
 export async function checkIn() {
     return attendanceRequest("/attendance/check-in", { method: "POST" })
 }
@@ -17,18 +37,50 @@ export async function checkOut() {
     return attendanceRequest("/attendance/check-out", { method: "POST" })
 }
 
+export async function getManagedAttendance(internId) {
+    return attendanceRequest(`/attendance/management/interns/${encodeURIComponent(internId)}`)
+}
+
+export async function addAttendance(internId, values) {
+    return attendanceRequest(`/attendance/management/interns/${encodeURIComponent(internId)}`, {
+        method: "POST",
+        body: JSON.stringify(values)
+    })
+}
+
+export async function updateAttendance(sessionId, values) {
+    return attendanceRequest(`/attendance/management/sessions/${encodeURIComponent(sessionId)}`, {
+        method: "PUT",
+        body: JSON.stringify(values)
+    })
+}
+
+export async function deleteAttendance(session) {
+    return attendanceRequest(`/attendance/management/sessions/${encodeURIComponent(session.id)}`, {
+        method: "DELETE",
+        body: JSON.stringify({
+            expectedCheckedInAt: session.checkedInAt,
+            expectedCheckedOutAt: session.checkedOutAt
+        })
+    })
+}
+
 async function attendanceRequest(path, options = {}) {
     const response = await fetch(`${API_URL}${path}`, {
         ...options,
         headers: {
             Authorization: `Bearer ${getToken()}`,
+            ...(options.body ? { "Content-Type": "application/json" } : {}),
             ...options.headers
         }
     })
     const data = await response.json()
 
     if (!response.ok) {
-        throw new Error(data.error || "Attendance request failed")
+        const error = new Error(data.error || "Attendance request failed")
+        error.fieldErrors = data.fieldErrors || {}
+        error.status = response.status
+        throw error
     }
 
     return data

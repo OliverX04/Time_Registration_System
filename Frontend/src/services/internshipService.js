@@ -46,21 +46,25 @@ export async function getInterns() {
     return data.interns
 }
 
-export async function activateIntern(internId) {
+export async function activateIntern(internId, startDate) {
     const response = await fetch(
-        `${API_URL}/internships/${internId}/activate`,
+        `${API_URL}/internships/${encodeURIComponent(internId)}/activate`,
         {
             method: "POST",
             headers: {
-                Authorization: `Bearer ${getToken()}`
-            }
+                Authorization: `Bearer ${getToken()}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ startDate })
         }
     )
 
     const data = await response.json()
 
     if (!response.ok) {
-        throw new Error(data.error || "Failed to activate intern.")
+        const error = new Error(data.error || "Failed to activate intern.")
+        error.fieldErrors = data.fieldErrors || {}
+        throw error
     }
 
     return data

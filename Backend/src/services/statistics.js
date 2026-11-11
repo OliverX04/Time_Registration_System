@@ -2,10 +2,10 @@ import db from "../database/db.js"
 
 const EXPECTED_INTERNSHIP_WORKING_DAYS = 100
 
-export function getStatistics({ internId = null, projectId = null, startDate = null, endDate = null, timeZone = "UTC" }) {
+export function getStatistics({ internId = null, projectId = null, taskId = null, startDate = null, endDate = null, timeZone = "UTC" }) {
     const range = createRange(startDate, endDate, timeZone)
     const attendance = getAttendanceSessions(internId, range)
-    const taskEntries = getTaskEntries(internId, projectId, range)
+    const taskEntries = getTaskEntries(internId, projectId, taskId, range)
     const daily = new Map()
     const weekly = new Map()
     const monthly = new Map()
@@ -74,7 +74,7 @@ export function getStatistics({ internId = null, projectId = null, startDate = n
     }
 
     return {
-        filters: { startDate, endDate, internId, projectId },
+        filters: { startDate, endDate, internId, projectId, taskId },
         timeZone,
         progress,
         totals: { attendanceDurationMs, expectedPresenceDurationMs, attendanceDifferenceMs, taskDurationMs },
@@ -275,7 +275,7 @@ function getAttendanceSessions(internId, range) {
     `).all(...params)
 }
 
-function getTaskEntries(internId, projectId, range) {
+function getTaskEntries(internId, projectId, taskId, range) {
     const conditions = ["task_time_entry.ended_at IS NOT NULL"]
     const params = []
 
@@ -286,6 +286,10 @@ function getTaskEntries(internId, projectId, range) {
     if (projectId) {
         conditions.push("project.id = ?")
         params.push(projectId)
+    }
+    if (taskId) {
+        conditions.push("task.id = ?")
+        params.push(taskId)
     }
     if (Number.isFinite(range.startMs)) {
         conditions.push("task_time_entry.ended_at > ?")

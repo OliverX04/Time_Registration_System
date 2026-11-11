@@ -3,7 +3,7 @@ import { API_URL } from "./apiConfig.js"
 
 export async function getStatistics(filters = {}, isSupervisor = false) {
     const params = new URLSearchParams()
-    for (const key of ["startDate", "endDate", "internId", "projectId"]) {
+    for (const key of ["startDate", "endDate", "internId", "projectId", "taskId"]) {
         if (filters[key]) params.set(key, filters[key])
     }
     params.set("timeZone", "Europe/Copenhagen")

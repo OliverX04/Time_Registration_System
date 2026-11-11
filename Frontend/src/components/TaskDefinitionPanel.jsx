@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
+import TaskTimeCorrectionForm from "./TaskTimeCorrectionForm.jsx"
 import { getInterns } from "../services/internshipService.js"
 import {
     createProjectTask,
@@ -19,13 +20,14 @@ import {
 } from "../services/taskTimeService.js"
 import "../styles/taskTime.css"
 
-function TaskDefinitionPanel({ userRole }) {
+function TaskDefinitionPanel({ userRole, userId }) {
     const isSupervisor = userRole === "SUPERVISOR"
     const [projects, setProjects] = useState([])
     const [selectedProjectId, setSelectedProjectId] = useState("")
     const [tasks, setTasks] = useState([])
     const [interns, setInterns] = useState([])
     const [assignments, setAssignments] = useState([])
+    const [showOnlyAssigned, setShowOnlyAssigned] = useState(false)
     const [expandedTaskId, setExpandedTaskId] = useState("")
     const [historyTaskId, setHistoryTaskId] = useState("")
     const [taskHistory, setTaskHistory] = useState(null)
@@ -46,6 +48,10 @@ function TaskDefinitionPanel({ userRole }) {
     const [error, setError] = useState("")
     const [success, setSuccess] = useState("")
     const selectedProject = projects.find((project) => project.id === selectedProjectId)
+    const isAssignmentFilterActive = userRole === "INTERN" && showOnlyAssigned
+    const visibleTasks = isAssignmentFilterActive
+        ? tasks.filter((task) => assignments.some((assignment) => assignment.taskId === task.id))
+        : tasks
     const activeInterns = useMemo(
         () => interns.filter((intern) => intern.isEnabled && intern.internshipId),
         [interns]
@@ -109,8 +115,8 @@ function TaskDefinitionPanel({ userRole }) {
         return () => { cancelled = true }
     }, [selectedProjectId])
 
-    async function handleToggleTaskHistory(task) {
-        if (historyTaskId === task.id) {
+    async function handleToggleTaskHistory(task, refresh = false) {
+        if (historyTaskId === task.id && !refresh) {
             historyRequestId.current += 1
             setHistoryTaskId("")
             setTaskHistory(null)
@@ -209,7 +215,7 @@ function TaskDefinitionPanel({ userRole }) {
         clearMessages()
 
         if (assignment) {
-            if (!window.confirm(`Remove ${intern.firstName} ${intern.lastName} from ${task.title}?`)) return
+            if (!window.confirm(`Remove ${assignment.internFirstName} ${assignment.internLastName} from ${task.title}?`)) return
             setBusyAction(`remove-${assignment.id}`)
 
             try {
@@ -230,6 +236,7 @@ function TaskDefinitionPanel({ userRole }) {
             await assignTaskToIntern(intern.id, task.id)
             await refreshAssignments()
             setSuccess("Assignment added.")
+            return true
         } catch (err) {
             setError(err.message)
         } finally {
@@ -339,6 +346,13 @@ function TaskDefinitionPanel({ userRole }) {
                         </select>
                     </div>
                 )}
+                {userRole === "INTERN" && selectedProject && (
+                    <label className="task-assignment-filter">
+                        <input type="checkbox" checked={showOnlyAssigned}
+                            onChange={(event) => setShowOnlyAssigned(event.target.checked)} />
+                        My assigned tasks
+                    </label>
+                )}
             </div>
 
             {error && <p className="error-message" role="alert">{error}</p>}
@@ -374,11 +388,13 @@ function TaskDefinitionPanel({ userRole }) {
                         </form>
                     )}
 
-                    {tasks.length === 0 ? (
-                        <p className="task-empty task-list-empty">No tasks in this project yet.</p>
+                    {visibleTasks.length === 0 ? (
+                        <p className="task-empty task-list-empty">
+                            {isAssignmentFilterActive ? "You have no assigned tasks in this project." : "No tasks in this project yet."}
+                        </p>
                     ) : (
                         <ul className="task-workspace-list">
-                            {tasks.map((task) => {
+                            {visibleTasks.map((task) => {
                                 const taskAssignments = assignments.filter((assignment) => assignment.taskId === task.id)
                                 const ownAssignment = isSupervisor ? null : taskAssignments[0]
                                 const canEdit = isSupervisor || task.createdByRole === "INTERN"
@@ -447,7 +463,7 @@ function TaskDefinitionPanel({ userRole }) {
                                                     <SupervisorTaskManager
                                                         task={task}
                                                         interns={activeInterns}
-                                                        assignments={assignments}
+                                                        assignments={taskAssignments}
                                                         busyAction={busyAction}
                                                         onToggleAssignment={handleSupervisorAssignment}
                                                     />
@@ -476,6 +492,9 @@ function TaskDefinitionPanel({ userRole }) {
                                                 history={taskHistory}
                                                 isLoading={isHistoryLoading}
                                                 error={historyError}
+                                                isSupervisor={isSupervisor}
+                                                internId={userRole === "INTERN" ? userId : null}
+                                                onCorrected={() => handleToggleTaskHistory(task, true)}
                                             />
                                         )}
                                     </li>
@@ -504,7 +523,8 @@ function TaskFields({ title, description, setTitle, setDescription, disabled, pr
     )
 }
 
-function TaskHistoryPanel({ history, isLoading, error }) {
+function TaskHistoryPanel({ history, isLoading, error, isSupervisor, internId, onCorrected }) {
+    const [editingEntryId, setEditingEntryId] = useState(null)
     if (isLoading) return <div className="task-history-panel"><p className="task-helper">Loading task history...</p></div>
     if (error) return <div className="task-history-panel"><p className="error-message" role="alert">{error}</p></div>
     if (!history) return null
@@ -540,8 +560,19 @@ function TaskHistoryPanel({ history, isLoading, error }) {
                                 {group.entries.map((entry) => (
                                     <article className="task-history-entry" key={entry.id}>
                                         <strong>{entry.internFirstName} {entry.internLastName}</strong>
-                                        <span>{formatTaskTime(entry.startedAt)}–{entry.endedAt ? formatTaskTime(entry.endedAt) : "In progress"}</span>
+                                        <div className="task-history-entry-time">
+                                            <span>{formatTaskTime(entry.startedAt)}–{entry.endedAt ? formatTaskTime(entry.endedAt) : "In progress"}</span>
+                                            {(isSupervisor || entry.internId === internId) && entry.endedAt && (
+                                                <button className="project-action" type="button" disabled={Boolean(editingEntryId)}
+                                                    onClick={() => setEditingEntryId(entry.id)}>Edit</button>
+                                            )}
+                                        </div>
                                         <span>{entry.durationMs === null ? "—" : formatTaskDuration(entry.durationMs)}</span>
+                                        {editingEntryId === entry.id && <TaskTimeCorrectionForm entry={entry}
+                                            onCancel={() => setEditingEntryId(null)} onSaved={() => {
+                                                setEditingEntryId(null)
+                                                onCorrected()
+                                            }} />}
                                     </article>
                                 ))}
                             </div>
@@ -597,39 +628,75 @@ function formatTaskDuration(durationMs) {
 }
 
 function SupervisorTaskManager({ task, interns, assignments, busyAction, onToggleAssignment }) {
-    const taskInterns = interns.filter((intern) =>
-        intern.currentProjectId === task.projectId
-        || assignments.some((assignment) => assignment.taskId === task.id && assignment.internId === intern.id)
+    const [showPicker, setShowPicker] = useState(false)
+    const [selectedInternId, setSelectedInternId] = useState("")
+    const assignedInternIds = new Set(assignments.map((assignment) => assignment.internId))
+    const eligibleInterns = interns.filter((intern) =>
+        intern.currentProjectId === task.projectId && !assignedInternIds.has(intern.id)
     )
+    const selectedIntern = eligibleInterns.find((intern) => intern.id === selectedInternId)
 
-    if (taskInterns.length === 0) return <p className="task-empty">No active Interns are assigned to this project.</p>
+    function closePicker() {
+        setShowPicker(false)
+        setSelectedInternId("")
+    }
+
+    async function handleAssign(event) {
+        event.preventDefault()
+        if (selectedIntern && await onToggleAssignment(task, selectedIntern)) closePicker()
+    }
 
     return (
         <div>
-            <h3>Assignments</h3>
-            <ul className="task-intern-list">
-                {taskInterns.map((intern) => {
-                    const assignment = assignments.find((item) => item.taskId === task.id && item.internId === intern.id)
-
-                    return (
-                        <li key={intern.id}>
+            <div className="task-assignments-heading">
+                <h3>Assignments</h3>
+                {!showPicker && (
+                    <button className="project-action" type="button" disabled={Boolean(busyAction)}
+                        onClick={() => setShowPicker(true)}>Assign intern</button>
+                )}
+            </div>
+            {showPicker && (
+                <form className="task-assignment-picker" onSubmit={handleAssign}>
+                    {eligibleInterns.length > 0 ? (
+                        <>
+                            <label className="form-group">
+                                Intern
+                                <select value={selectedIntern?.id ?? ""} disabled={Boolean(busyAction)}
+                                    onChange={(event) => setSelectedInternId(event.target.value)} required>
+                                    <option value="">Choose an intern</option>
+                                    {eligibleInterns.map((intern) => (
+                                        <option key={intern.id} value={intern.id}>{intern.firstName} {intern.lastName}</option>
+                                    ))}
+                                </select>
+                            </label>
+                            <button className="project-action project-action-primary"
+                                disabled={Boolean(busyAction) || !selectedIntern}>Assign</button>
+                        </>
+                    ) : <p className="task-helper">No eligible interns to assign.</p>}
+                    <button className="project-action" type="button" disabled={Boolean(busyAction)}
+                        onClick={closePicker}>Cancel</button>
+                </form>
+            )}
+            {assignments.length === 0 ? <p className="task-helper">No interns assigned to this task.</p> : (
+                <ul className="task-intern-list">
+                    {assignments.map((assignment) => (
+                        <li key={assignment.id}>
                             <div>
-                                <strong>{intern.firstName} {intern.lastName}</strong>
-                                {assignment?.internNote && <small>Note: {assignment.internNote}</small>}
-                                {!assignment && intern.currentProjectName && <small>Currently in {intern.currentProjectName}</small>}
+                                <strong>{assignment.internFirstName} {assignment.internLastName}</strong>
+                                {assignment.internNote && <small>Note: {assignment.internNote}</small>}
                             </div>
                             <button
                                 className="project-action"
                                 type="button"
                                 disabled={Boolean(busyAction)}
-                                onClick={() => onToggleAssignment(task, intern, assignment)}
+                                onClick={() => onToggleAssignment(task, null, assignment)}
                             >
-                                {assignment ? "Remove" : "Assign"}
+                                Remove
                             </button>
                         </li>
-                    )
-                })}
-            </ul>
+                    ))}
+                </ul>
+            )}
         </div>
     )
 }

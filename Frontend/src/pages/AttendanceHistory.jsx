@@ -3,6 +3,7 @@ import { Link } from "react-router-dom"
 import AppLayout from "../components/AppLayout.jsx"
 import { getAttendanceHistory } from "../services/attendanceService.js"
 import { getCurrentUser } from "../services/authService.js"
+import { unseenAttendanceDecisions } from "../services/attendanceDecisions.js"
 import AttendanceRequestForm from "../components/AttendanceRequestForm.jsx"
 import { CorrectionDetails } from "../components/AttendanceCorrectionRequests.jsx"
 import "../styles/attendance.css"
@@ -18,7 +19,7 @@ function AttendanceHistory() {
     const [form, setForm] = useState(null)
     const [version, setVersion] = useState(0)
     const [notice, setNotice] = useState("")
-    const [newApprovals, setNewApprovals] = useState([])
+    const [newDecisions, setNewDecisions] = useState([])
     const userId = getCurrentUser()?.id
     const sessionGroups = groupSessionsByDate(sessions)
 
@@ -33,8 +34,8 @@ function AttendanceHistory() {
                     setSessions(result.sessions)
                     setInternships(result.internships)
                     setRequests(result.requests)
-                    const unseen = takeUnseenApprovals(result.requests, userId)
-                    if (unseen.length) setNewApprovals(unseen)
+                    const unseen = unseenAttendanceDecisions(result.requests, userId, true)
+                    if (unseen.length) setNewDecisions((current) => [...unseen, ...current])
                 }
             } catch (err) {
                 if (!cancelled) setError(err.message)
@@ -49,17 +50,19 @@ function AttendanceHistory() {
 
     return (
         <AppLayout>
-            <div className="auth-card dashboard-card">
+            <div className="auth-card dashboard-card attendance-history-card">
                 <h1>Attendance History</h1>
                 <p className="auth-subtitle">Your registered attendance sessions, newest first.</p>
 
                 {isLoading && <p className="task-helper">Loading attendance history...</p>}
                 {error && <p className="error-message" role="alert">{error}</p>}
                 {notice && <p className="success-message" role="status">{notice}</p>}
-                <button className="attendance-action" type="button" disabled={Boolean(form) || isLoading}
-                    onClick={() => { setIsLoading(true); setVersion((current) => current + 1) }}>Refresh history</button>
-                {internships.length > 0 && <button className="attendance-action" type="button"
-                    disabled={Boolean(form)} onClick={() => setForm({ session: null })}>Report missing attendance</button>}
+                <div className="attendance-form-actions">
+                    <button className="attendance-action" type="button" disabled={Boolean(form) || isLoading}
+                        onClick={() => { setIsLoading(true); setVersion((current) => current + 1) }}>Refresh history</button>
+                    {internships.length > 0 && <button className="attendance-action" type="button"
+                        disabled={Boolean(form)} onClick={() => setForm({ session: null })}>Report missing attendance</button>}
+                </div>
                 {form && <AttendanceRequestForm session={form.session} internships={internships}
                     onCancel={() => setForm(null)} onSubmitted={() => {
                         setForm(null)
@@ -69,10 +72,11 @@ function AttendanceHistory() {
                     }} />}
                 {!isLoading && !error && <section aria-label="Your correction requests">
                     <h2>Your correction requests</h2>
-                    {newApprovals.length > 0 && (
-                        <div className="attendance-approval-notice" role="status">
-                            <h3>{newApprovals.length === 1 ? "✓ Correction approved" : "✓ Corrections approved"}</h3>
-                            {newApprovals.map((request) => <article key={request.id}>
+                    {newDecisions.length > 0 && (
+                        <div role="status">
+                            {newDecisions.map((request) => <article key={request.id}
+                                className={`attendance-approval-notice${request.status === "REJECTED" ? " attendance-rejection-notice" : ""}`}>
+                                <h3>{request.status === "APPROVED" ? "✓ Correction approved" : "Correction rejected"}</h3>
                                 <CorrectionDetails request={request} />
                             </article>)}
                         </div>
@@ -111,16 +115,22 @@ function AttendanceHistory() {
                                     {group.sessions.map((session) => (
                                         <article className="attendance-entry" key={session.id}>
                                             <p aria-label={`Check In: ${formatTime(session.checkedInAt)}`}>
+                                                <span className="attendance-entry-label" aria-hidden="true">Check In</span>
                                                 <strong>{formatTime(session.checkedInAt)}</strong>
                                             </p>
                                             <p aria-label={`Check Out: ${session.checkedOutAt ? formatTime(session.checkedOutAt) : "Not checked out"}`}>
+                                                <span className="attendance-entry-label" aria-hidden="true">Check Out</span>
                                                 <strong>{session.checkedOutAt ? formatTime(session.checkedOutAt) : "—"}</strong>
                                             </p>
                                             <p aria-label={`Duration: ${session.checkedOutAt ? formatDuration(session) : "Not available"}`}>
+                                                <span className="attendance-entry-label" aria-hidden="true">Duration</span>
                                                 <strong>{session.checkedOutAt ? formatDuration(session) : "—"}</strong>
                                             </p>
-                                            <div>
-                                                <strong>{session.checkedOutAt ? "Completed" : "In progress"}</strong>
+                                            <div className="attendance-entry-status">
+                                                <div>
+                                                    <span className="attendance-entry-label">Status</span>
+                                                    <strong>{session.checkedOutAt ? "Completed" : "In progress"}</strong>
+                                                </div>
                                                 <button className="attendance-action" type="button"
                                                     aria-label={`Request correction for ${formatDate(session.checkedInAt)} at ${formatTime(session.checkedInAt)}`}
                                                     disabled={Boolean(form) || requests.some((request) => request.sessionId === session.id && request.status === "PENDING")}
@@ -136,22 +146,6 @@ function AttendanceHistory() {
             </div>
         </AppLayout>
     )
-}
-
-function takeUnseenApprovals(requests, userId) {
-    if (!userId) return []
-    const key = `attendance-seen-approvals:${userId}`
-    try {
-        const seen = new Set(JSON.parse(localStorage.getItem(key) ?? "[]"))
-        const unseen = requests.filter((request) => request.status === "APPROVED" && !seen.has(request.id))
-        if (unseen.length) {
-            unseen.forEach((request) => seen.add(request.id))
-            localStorage.setItem(key, JSON.stringify([...seen]))
-        }
-        return unseen
-    } catch {
-        return []
-    }
 }
 
 function groupSessionsByDate(sessions) {

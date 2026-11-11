@@ -33,11 +33,9 @@ function InternManagementPanel() {
         return interns.filter((intern) => {
             const status = intern.internshipId
                 ? "active"
-                : intern.isEnabled
-                    ? "awaiting"
-                    : intern.lastOutcome
-                        ? "former"
-                        : "inactive"
+                : intern.lastOutcome
+                    ? "former"
+                    : "awaiting"
             const matchesStatus = statusFilter === "all" || status === statusFilter
             const searchableText = [
                 intern.firstName,
@@ -183,7 +181,6 @@ function InternManagementPanel() {
                         <option value="active">Active</option>
                         <option value="awaiting">Awaiting activation</option>
                         <option value="former">Former interns</option>
-                        <option value="inactive">Inactive</option>
                     </select>
                 </label>
                 <p className="intern-result-count">{filteredInterns.length} interns</p>

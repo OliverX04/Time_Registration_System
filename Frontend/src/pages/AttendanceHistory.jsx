@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react"
+import { Link } from "react-router-dom"
 import AppLayout from "../components/AppLayout.jsx"
 import { getAttendanceHistory } from "../services/attendanceService.js"
+import { getCurrentUser } from "../services/authService.js"
 import AttendanceRequestForm from "../components/AttendanceRequestForm.jsx"
 import { CorrectionDetails } from "../components/AttendanceCorrectionRequests.jsx"
 import "../styles/attendance.css"
@@ -12,9 +14,12 @@ function AttendanceHistory() {
     const [error, setError] = useState("")
     const [internships, setInternships] = useState([])
     const [requests, setRequests] = useState([])
+    const pendingRequests = requests.filter((request) => request.status === "PENDING")
     const [form, setForm] = useState(null)
     const [version, setVersion] = useState(0)
     const [notice, setNotice] = useState("")
+    const [newApprovals, setNewApprovals] = useState([])
+    const userId = getCurrentUser()?.id
     const sessionGroups = groupSessionsByDate(sessions)
 
     useEffect(() => {
@@ -28,6 +33,8 @@ function AttendanceHistory() {
                     setSessions(result.sessions)
                     setInternships(result.internships)
                     setRequests(result.requests)
+                    const unseen = takeUnseenApprovals(result.requests, userId)
+                    if (unseen.length) setNewApprovals(unseen)
                 }
             } catch (err) {
                 if (!cancelled) setError(err.message)
@@ -38,7 +45,7 @@ function AttendanceHistory() {
 
         loadHistory()
         return () => { cancelled = true }
-    }, [version])
+    }, [version, userId])
 
     return (
         <AppLayout>
@@ -60,12 +67,22 @@ function AttendanceHistory() {
                         setIsLoading(true)
                         setVersion((current) => current + 1)
                     }} />}
-                {requests.length > 0 && <section aria-label="Your correction requests">
+                {!isLoading && !error && <section aria-label="Your correction requests">
                     <h2>Your correction requests</h2>
-                    {requests.map((request) => <article className="attendance-correction-form" key={request.id}>
-                        <strong>{request.status === "PENDING" ? "Pending" : request.status === "APPROVED" ? "Approved" : "Rejected"}</strong>
+                    {newApprovals.length > 0 && (
+                        <div className="attendance-approval-notice" role="status">
+                            <h3>{newApprovals.length === 1 ? "✓ Correction approved" : "✓ Corrections approved"}</h3>
+                            {newApprovals.map((request) => <article key={request.id}>
+                                <CorrectionDetails request={request} />
+                            </article>)}
+                        </div>
+                    )}
+                    {pendingRequests.length === 0 && <p>You don't have any pending requests :D</p>}
+                    {pendingRequests.map((request) => <article className="attendance-correction-form" key={request.id}>
+                        <strong>Pending</strong>
                         <CorrectionDetails request={request} />
                     </article>)}
+                    <Link className="attendance-history-link" to="corrections">Show history</Link>
                 </section>}
 
                 {!isLoading && !error && sessions.length === 0 && (
@@ -119,6 +136,22 @@ function AttendanceHistory() {
             </div>
         </AppLayout>
     )
+}
+
+function takeUnseenApprovals(requests, userId) {
+    if (!userId) return []
+    const key = `attendance-seen-approvals:${userId}`
+    try {
+        const seen = new Set(JSON.parse(localStorage.getItem(key) ?? "[]"))
+        const unseen = requests.filter((request) => request.status === "APPROVED" && !seen.has(request.id))
+        if (unseen.length) {
+            unseen.forEach((request) => seen.add(request.id))
+            localStorage.setItem(key, JSON.stringify([...seen]))
+        }
+        return unseen
+    } catch {
+        return []
+    }
 }
 
 function groupSessionsByDate(sessions) {

@@ -33,3 +33,7 @@ export async function restoreDatabaseBackup(id) {
         body: JSON.stringify({ id })
     })
 }
+
+export async function deleteDatabaseBackup(id) {
+    await request(`/${encodeURIComponent(id)}`, { method: "DELETE" })
+}

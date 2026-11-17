@@ -8,6 +8,8 @@
 
 The server validates the chosen copy and saves a **Before restore** snapshot of the current database before replacing it. To undo a restore, select that snapshot after signing in again. Every successful restore invalidates existing sessions.
 
+To remove a snapshot, open the restore point list, select the trash icon beside the snapshot, and confirm deletion. Deleting a snapshot removes that restore point and prevents the scheduler from recreating the same run.
+
 ## Automatic backups
 
 In **Database backups**, select **Daily** or **Weekly**, set the time and choose a weekday for weekly backups. Times use `Europe/Copenhagen`. The default is daily at 02:00. A saved schedule takes effect at its next scheduled time and remains active after a restore.

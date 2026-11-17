@@ -1,6 +1,6 @@
 import express from "express"
 import db from "../database/db.js"
-import { getBackupSchedule, listBackups, restoreBackup, setBackupSchedule } from "../database/backups.js"
+import { deleteBackup, getBackupSchedule, listBackups, restoreBackup, setBackupSchedule } from "../database/backups.js"
 import { hasPendingDatabaseWork } from "../database/pendingWork.js"
 import { requireAuth } from "../security/requireAuth.js"
 
@@ -27,6 +27,13 @@ databaseBackupsRouter.put("/schedule", (req, res) => {
         return res.status(400).send({ error: "Choose a valid backup frequency, time and day." })
     }
     res.send({ schedule })
+})
+
+databaseBackupsRouter.delete("/:id", (req, res) => {
+    if (!deleteBackup(req.params.id)) {
+        return res.status(404).send({ error: "Backup not found." })
+    }
+    res.send({ message: "Backup deleted." })
 })
 
 databaseBackupsRouter.post("/restore", (req, res) => {

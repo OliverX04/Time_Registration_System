@@ -80,7 +80,8 @@ export function ensureScheduledBackup() {
     const slot = latestScheduledSlot(schedule, new Date())
     if (schedule.updatedAt && slot <= latestScheduledSlot(schedule, new Date(schedule.updatedAt))) return
     const filename = `${schedule.frequency}-${slot}.sqlite`
-    if (!fs.existsSync(path.join(directory, filename)) && hasEnabledSupervisor(db)) {
+    const target = path.join(directory, filename)
+    if (!fs.existsSync(target) && !fs.existsSync(`${target}.deleted`) && hasEnabledSupervisor(db)) {
         saveSnapshot(filename)
     }
 }
@@ -93,10 +94,26 @@ export function listBackups() {
         .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
 }
 
-export function restoreBackup(id) {
-    if (typeof id !== "string" || (!scheduledName.test(id) && !previousName.test(id))) return false
+function findBackupFile(id) {
+    if (typeof id !== "string" || (!scheduledName.test(id) && !previousName.test(id))) return null
     const source = path.join(directory, id)
-    if (!fs.lstatSync(source, { throwIfNoEntry: false })?.isFile()) return false
+    return fs.lstatSync(source, { throwIfNoEntry: false })?.isFile() ? source : null
+}
+
+export function deleteBackup(id) {
+    const source = findBackupFile(id)
+    if (!source) return false
+    if (scheduledName.test(id)) {
+        // Keep the completed slot recorded so the scheduler does not recreate it.
+        fs.writeFileSync(`${source}.deleted`, "", { flag: "a", mode: 0o600 })
+    }
+    fs.unlinkSync(source)
+    return true
+}
+
+export function restoreBackup(id) {
+    const source = findBackupFile(id)
+    if (!source) return false
 
     const scratch = reserveDirectory(path.dirname(databasePath))
     try {

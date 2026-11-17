@@ -4,7 +4,7 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 
-test("scheduled backups support Supervisor-only configuration, restore and undo", async t => {
+test("scheduled backups support Supervisor-only configuration, deletion, restore and undo", async t => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "database-backups-test-"))
     process.env.DATABASE_PATH = path.join(tempDir, "database.sqlite")
     process.env.JWT_SECRET = "database-backups-test-secret"
@@ -85,6 +85,20 @@ test("scheduled backups support Supervisor-only configuration, restore and undo"
     const restoreToken = createToken(supervisor)
     assert.deepEqual((await getBackups(restoreToken)).filter(backup => backup.type === "weekly")
         .map(backup => backup.id), ["weekly-2026-11-20T18_30.sqlite"])
+
+    const weeklyId = "weekly-2026-11-20T18_30.sqlite"
+    const deleteBackup = (token, id) => fetch(`${url}/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` }
+    })
+    assert.equal((await deleteBackup(createToken(intern), weeklyId)).status, 403)
+    assert.equal((await deleteBackup(restoreToken, "../database.sqlite")).status, 404)
+    assert.equal((await deleteBackup(restoreToken, "schedule.json")).status, 404)
+    assert.equal((await deleteBackup(restoreToken, weeklyId)).status, 200)
+    assert.equal(fs.existsSync(path.join(`${process.env.DATABASE_PATH}.backups`, weeklyId)), false)
+    ensureScheduledBackup()
+    assert.equal((await getBackups(restoreToken)).some(backup => backup.id === weeklyId), false)
+    assert.equal((await request(restoreToken, { id: weeklyId })).status, 404)
 
     const { promise, resolve } = Promise.withResolvers()
     const inFlight = trackDatabaseWork(() => promise)()

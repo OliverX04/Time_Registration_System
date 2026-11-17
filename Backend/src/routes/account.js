@@ -1,11 +1,12 @@
 import express from "express"
 import db from "../database/db.js"
+import { trackDatabaseWork } from "../database/pendingWork.js"
 import { comparePassword, hashPassword } from "../security/password.js"
 import { requireAuth } from "../security/requireAuth.js"
 
 export const accountRouter = express.Router()
 
-accountRouter.post("/password", requireAuth, async (req, res) => {
+accountRouter.post("/password", requireAuth, trackDatabaseWork(async (req, res) => {
     const { currentPassword, newPassword } = req.body ?? {}
     if (typeof currentPassword !== "string" || !currentPassword) {
         return res.status(400).send({ error: "Enter your current password." })
@@ -37,4 +38,4 @@ accountRouter.post("/password", requireAuth, async (req, res) => {
     }
 
     res.send({ message: "Password changed." })
-})
+}))

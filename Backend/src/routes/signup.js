@@ -1,11 +1,12 @@
 import express from "express"
 import db from "../database/db.js"
+import { trackDatabaseWork } from "../database/pendingWork.js"
 import { hashPassword } from "../security/password.js"
 import { validateRegistration } from "../validation/accounts.js"
 
 export const signupRouter = express.Router()
 
-signupRouter.post("/", async (req, res) => {
+signupRouter.post("/", trackDatabaseWork(async (req, res) => {
     const { values, fieldErrors } = validateRegistration(req.body)
 
     if (Object.keys(fieldErrors).length) {
@@ -40,7 +41,7 @@ signupRouter.post("/", async (req, res) => {
             error: "Error signing up"
         })
     }
-})
+}))
 
 function findConflict({ email }) {
     if (db.prepare("SELECT id FROM user_account WHERE email = ?").get(email)) {

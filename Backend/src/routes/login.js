@@ -1,12 +1,13 @@
 import express from "express"
 import db from "../database/db.js"
+import { trackDatabaseWork } from "../database/pendingWork.js"
 import { comparePassword } from "../security/password.js"
 import { createToken } from "../security/jwt.js"
 import { validateLogin } from "../validation/accounts.js"
 
 export const loginRouter = express.Router()
 
-loginRouter.post("/", async (req, res) => {
+loginRouter.post("/", trackDatabaseWork(async (req, res) => {
     const { values, fieldErrors } = validateLogin(req.body)
 
     if (Object.keys(fieldErrors).length) {
@@ -42,7 +43,7 @@ loginRouter.post("/", async (req, res) => {
             error: "Error logging in"
         })
     }
-})
+}))
 
 async function authenticateUser(email, password) {
     const user = db

@@ -45,6 +45,12 @@ function Login() {
                     </p>
                 )}
 
+                {state?.databaseRestored && (
+                    <p className="success-message" role="status">
+                        Database restored. Log in with your credentials from the selected backup.
+                    </p>
+                )}
+
                 <form onSubmit={handleLogin}>
                     <div className="form-group">
                         <label htmlFor="email">

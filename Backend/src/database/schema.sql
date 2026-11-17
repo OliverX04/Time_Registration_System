@@ -1,5 +1,10 @@
 PRAGMA foreign_keys = ON;
 
+CREATE TABLE IF NOT EXISTS session_revision (
+    singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+    value TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS user_account (
     id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
     first_name TEXT NOT NULL,

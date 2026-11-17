@@ -26,7 +26,7 @@ npm.cmd start
 
 The server listens on port 3000. The first-Supervisor script creates one account only when no Supervisor exists. Running it again does not reset an existing account.
 
-SQLite is a library used by the backend. Its database file is created at `Backend/data/database.sqlite`; a separate database server is not needed for local development. Existing databases are migrated automatically when the backend starts. Back up an existing file before updating the application. If old accounts have conflicting email addresses after trimming and converting to lowercase, startup stops with a clear error so the addresses can be corrected without merging or deleting accounts.
+SQLite is a library used by the backend. Its database file is created at `Backend/data/database.sqlite`; a separate database server is not needed for local development. Existing databases are migrated automatically when the backend starts. Supervisors can schedule and restore snapshots from [Database backups](docs/database-backup-restore.md). If old accounts have conflicting email addresses after trimming and converting to lowercase, startup stops with a clear error so the addresses can be corrected without merging or deleting accounts.
 
 ### 2. Start the frontend in a second terminal
 

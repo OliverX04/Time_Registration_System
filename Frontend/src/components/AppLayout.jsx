@@ -139,6 +139,15 @@ function AppLayout({ children }) {
                         Tasks
                     </NavLink>
 
+                    {isSupervisor && (
+                        <NavLink
+                            className="sidebar-link"
+                            to={`${homePath}/register-supervisor`}
+                        >
+                            Register Supervisor
+                        </NavLink>
+                    )}
+
                     <NavLink className="sidebar-link" to="/change-password">
                         Change password
                     </NavLink>

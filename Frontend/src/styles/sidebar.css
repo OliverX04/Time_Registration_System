@@ -77,3 +77,31 @@
     min-width: 0;
     padding: 24px;
 }
+
+@media (max-width: 600px) {
+    .app-layout:has(.register-supervisor-card) {
+        grid-template-columns: minmax(0, 1fr);
+        align-content: start;
+    }
+
+    .app-layout:has(.register-supervisor-card) .sidebar {
+        position: static;
+        height: auto;
+        padding: 8px;
+        border-right: 0;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .app-layout:has(.register-supervisor-card) .sidebar-navigation {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    .app-layout:has(.register-supervisor-card) .sidebar-link {
+        width: auto;
+    }
+
+    .app-content:has(.register-supervisor-card) {
+        padding: 12px;
+    }
+}

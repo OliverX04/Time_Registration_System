@@ -13,6 +13,7 @@ import Statistics from "./pages/Statistics.jsx"
 import Interns from "./pages/Interns.jsx"
 import ChangePassword from "./pages/ChangePassword.jsx"
 import ProtectedRoute from "./components/ProtectedRoute.jsx"
+import RegisterSupervisor from "./pages/RegisterSupervisor.jsx"
 import "./styles/auth.css"
 
 function App() {
@@ -122,6 +123,16 @@ function App() {
                     </ProtectedRoute>
                 }
             />
+
+            <Route
+                path="/supervisor-dashboard/register-supervisor"
+                element={
+                    <ProtectedRoute requiredRole="SUPERVISOR">
+                        <RegisterSupervisor />
+                    </ProtectedRoute>
+                }
+            />
+
 
             <Route
                 path="/supervisor-dashboard/attendance"

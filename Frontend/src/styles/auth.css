@@ -299,9 +299,103 @@
 }
 
 @media (max-width: 900px) {
+
     .project-context,
     .task-layout-intern,
     .task-layout-supervisor {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Supervisor dashboard shortcuts */
+
+/* Supervisor dashboard */
+
+.dashboard-welcome {
+    padding-bottom: 24px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.dashboard-label {
+    display: block;
+    margin-bottom: 12px;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+}
+
+.dashboard-welcome h1 {
+    text-align: left;
+    margin-bottom: 10px;
+}
+
+.dashboard-welcome p {
+    margin: 0;
+    color: #64748b;
+    font-size: 15px;
+}
+
+/* Quick access section */
+
+.dashboard-shortcuts {
+    margin-top: 28px;
+}
+
+.dashboard-shortcuts h2 {
+    margin-bottom: 18px;
+    color: #1f2937;
+    font-size: 20px;
+}
+
+.dashboard-shortcut-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.dashboard-shortcut {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 22px;
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    color: #1f2937;
+    text-decoration: none;
+    text-align: left;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+.dashboard-shortcut:hover {
+    background-color: #eff6ff;
+    border-color: #93c5fd;
+}
+
+.dashboard-shortcut:focus-visible {
+    outline: 3px solid #93c5fd;
+    outline-offset: 3px;
+}
+
+.dashboard-shortcut-icon {
+    font-size: 24px;
+}
+
+.dashboard-shortcut strong {
+    color: #1d4ed8;
+    font-size: 16px;
+}
+
+.dashboard-shortcut-description {
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+@media (max-width: 600px) {
+    .dashboard-shortcut-grid {
         grid-template-columns: 1fr;
     }
 }

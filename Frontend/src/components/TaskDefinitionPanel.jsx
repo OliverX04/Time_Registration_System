@@ -451,7 +451,11 @@ function TaskDefinitionPanel({ userRole, userId }) {
                                                             setExpandedTaskId((current) => current === task.id ? "" : task.id)
                                                         }}
                                                     >
-                                                        {expandedTaskId === task.id ? "Close" : "Manage"}
+                                                        {expandedTaskId === task.id
+                                                            ? "Close"
+                                                            : isSupervisor
+                                                                ? "Manage"
+                                                                : "Join task / Record time"}
                                                     </button>
                                                 </div>
                                             </>

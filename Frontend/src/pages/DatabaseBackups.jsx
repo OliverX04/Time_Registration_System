@@ -166,7 +166,6 @@ export default function DatabaseBackups() {
                         </button>
                     </form>
                 )}
-                {deleteNotice && <p className="success-message" role="status">{deleteNotice}</p>}
                 {!loading && !error && backups.length === 0 && <p>No backups available yet.</p>}
                 {backups.length > 0 && (
                     <form onSubmit={handleRestore}>
@@ -196,6 +195,7 @@ export default function DatabaseBackups() {
                         </button>
                     </form>
                 )}
+                {deleteNotice && <p className="success-message" role="status">{deleteNotice}</p>}
             </section>
         </AppLayout>
     )

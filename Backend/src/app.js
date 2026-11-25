@@ -9,6 +9,7 @@ import { internshipsRouter } from "./routes/internships.js"
 import { taskTimeRouter } from "./routes/taskTime.js"
 import { statisticsRouter } from "./routes/statistics.js"
 import { supervisorsRouter } from "./routes/supervisors.js"
+import { databaseBackupsRouter } from "./routes/databaseBackups.js"
 
 export const app = express()
 
@@ -24,6 +25,7 @@ app.use("/internships", internshipsRouter)
 app.use("/task-time", taskTimeRouter)
 app.use("/statistics", statisticsRouter)
 app.use("/supervisors", supervisorsRouter)
+app.use("/database-backups", databaseBackupsRouter)
 
 app.use((err, req, res, next) => {
     if (err.type === "entity.parse.failed") {

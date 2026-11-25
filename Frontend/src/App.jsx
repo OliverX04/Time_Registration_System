@@ -12,6 +12,7 @@ import AttendanceManagement from "./pages/AttendanceManagement.jsx"
 import Statistics from "./pages/Statistics.jsx"
 import Interns from "./pages/Interns.jsx"
 import ChangePassword from "./pages/ChangePassword.jsx"
+import DatabaseBackups from "./pages/DatabaseBackups.jsx"
 import ProtectedRoute from "./components/ProtectedRoute.jsx"
 import RegisterSupervisor from "./pages/RegisterSupervisor.jsx"
 import "./styles/auth.css"
@@ -166,6 +167,15 @@ function App() {
                 element={
                     <ProtectedRoute requiredRole="SUPERVISOR">
                         <Statistics />
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/supervisor-dashboard/backups"
+                element={
+                    <ProtectedRoute requiredRole="SUPERVISOR">
+                        <DatabaseBackups />
                     </ProtectedRoute>
                 }
             />

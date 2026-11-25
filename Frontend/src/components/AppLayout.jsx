@@ -152,6 +152,12 @@ function AppLayout({ children }) {
                         Change password
                     </NavLink>
 
+                    {isSupervisor && (
+                        <NavLink className="sidebar-link" to={`${homePath}/backups`}>
+                            Database backups
+                        </NavLink>
+                    )}
+
                     <button
                         className="sidebar-link sidebar-logout"
                         type="button"

@@ -7,7 +7,7 @@ import { defaultSchedule, latestScheduledSlot, publicSchedule, validateSchedule 
 
 const directory = `${databasePath}.backups`
 const scheduledName = /^(?:daily|weekly)-\d{4}-\d{2}-\d{2}(?:T\d{2}_\d{2})?\.sqlite$/
-const previousName = /^before-restore-\d{4}-\d{2}-\d{2}T\d{2}_\d{2}_\d{2}\.\d{3}Z-[a-f0-9-]{36}\.sqlite$/
+const snapshotName = /^(?:before-restore|manual)-\d{4}-\d{2}-\d{2}T\d{2}_\d{2}_\d{2}\.\d{3}Z-[a-f0-9-]{36}\.sqlite$/
 const schedulePath = path.join(directory, "schedule.json")
 
 function hasEnabledSupervisor(connection) {
@@ -19,7 +19,7 @@ function hasEnabledSupervisor(connection) {
 function describeBackup(filename, stats) {
     return {
         id: filename,
-        type: scheduledName.test(filename) ? filename.split("-")[0] : "before-restore",
+        type: filename.startsWith("before-restore-") ? "before-restore" : filename.split("-")[0],
         createdAt: stats.mtime.toISOString()
     }
 }
@@ -86,16 +86,23 @@ export function ensureScheduledBackup() {
     }
 }
 
+export function createManualBackup() {
+    const timestamp = new Date().toISOString().replaceAll(":", "_")
+    const filename = `manual-${timestamp}-${randomUUID()}.sqlite`
+    saveSnapshot(filename)
+    return describeBackup(filename, fs.statSync(path.join(directory, filename)))
+}
+
 export function listBackups() {
     if (!fs.existsSync(directory)) return []
     return fs.readdirSync(directory, { withFileTypes: true })
-        .filter(entry => entry.isFile() && (scheduledName.test(entry.name) || previousName.test(entry.name)))
+        .filter(entry => entry.isFile() && (scheduledName.test(entry.name) || snapshotName.test(entry.name)))
         .map(entry => describeBackup(entry.name, fs.statSync(path.join(directory, entry.name))))
         .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
 }
 
 function findBackupFile(id) {
-    if (typeof id !== "string" || (!scheduledName.test(id) && !previousName.test(id))) return null
+    if (typeof id !== "string" || (!scheduledName.test(id) && !snapshotName.test(id))) return null
     const source = path.join(directory, id)
     return fs.lstatSync(source, { throwIfNoEntry: false })?.isFile() ? source : null
 }

@@ -17,6 +17,11 @@ export function loadDatabaseBackups(signal) {
     return request("", { signal })
 }
 
+export async function createDatabaseBackup() {
+    const { backup } = await request("", { method: "POST" })
+    return backup
+}
+
 export async function saveBackupSchedule(settings) {
     const { schedule } = await request("/schedule", {
         method: "PUT",

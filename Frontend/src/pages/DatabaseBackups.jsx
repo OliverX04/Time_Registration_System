@@ -2,12 +2,12 @@ import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import AppLayout from "../components/AppLayout.jsx"
 import { getToken, logoutUser } from "../services/authService.js"
-import { deleteDatabaseBackup, loadDatabaseBackups, restoreDatabaseBackup, saveBackupSchedule } from "../services/databaseBackupService.js"
+import { createDatabaseBackup, deleteDatabaseBackup, loadDatabaseBackups, restoreDatabaseBackup, saveBackupSchedule } from "../services/databaseBackupService.js"
 import "../styles/databaseBackups.css"
 
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "medium" })
 const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
-const backupTypes = { daily: "Daily backup", weekly: "Weekly backup", "before-restore": "Before restore" }
+const backupTypes = { daily: "Daily backup", weekly: "Weekly backup", manual: "Manual backup", "before-restore": "Before restore" }
 
 function backupLabel(backup) {
     return `${dateFormat.format(new Date(backup.createdAt))} (${backupTypes[backup.type]})`
@@ -18,6 +18,8 @@ export default function DatabaseBackups() {
     const [selectedId, setSelectedId] = useState("")
     const [loading, setLoading] = useState(true)
     const [restoring, setRestoring] = useState(false)
+    const [creatingBackup, setCreatingBackup] = useState(false)
+    const [backupNotice, setBackupNotice] = useState("")
     const [deletingId, setDeletingId] = useState("")
     const [deleteNotice, setDeleteNotice] = useState("")
     const [error, setError] = useState("")
@@ -27,7 +29,7 @@ export default function DatabaseBackups() {
     const [scheduleNotice, setScheduleNotice] = useState("")
     const navigate = useNavigate()
     const selected = backups.find(backup => backup.id === selectedId)
-    const busy = restoring || savingSchedule || Boolean(deletingId)
+    const busy = restoring || savingSchedule || creatingBackup || Boolean(deletingId)
 
     useEffect(() => {
         const controller = new AbortController()
@@ -49,6 +51,23 @@ export default function DatabaseBackups() {
         setSchedule(current => ({ ...current, [field]: value }))
         setScheduleNotice("")
         setScheduleError("")
+    }
+
+    async function handleBackupNow() {
+        if (busy) return
+        setCreatingBackup(true)
+        setBackupNotice("")
+        setDeleteNotice("")
+        setError("")
+        try {
+            const backup = await createDatabaseBackup()
+            setBackups(current => [backup, ...current])
+            setBackupNotice("Backup created.")
+        } catch (error) {
+            setError(error.message)
+        } finally {
+            setCreatingBackup(false)
+        }
     }
 
     async function handleSchedule(event) {
@@ -107,6 +126,11 @@ export default function DatabaseBackups() {
         <AppLayout>
             <section className="auth-card dashboard-card">
                 <h1>Database backups</h1>
+                <button type="button" className="auth-button" disabled={busy || loading}
+                    onClick={handleBackupNow}>
+                    {creatingBackup ? "Creating backup…" : "Backup now"}
+                </button>
+                {backupNotice && <p className="success-message" role="status">{backupNotice}</p>}
                 {loading && <p role="status">Loading backups…</p>}
                 {error && <p className="error-message" role="alert">{error}</p>}
                 {schedule && (

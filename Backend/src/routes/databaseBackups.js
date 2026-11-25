@@ -1,6 +1,6 @@
 import express from "express"
 import db from "../database/db.js"
-import { deleteBackup, getBackupSchedule, listBackups, restoreBackup, setBackupSchedule } from "../database/backups.js"
+import { createManualBackup, deleteBackup, getBackupSchedule, listBackups, restoreBackup, setBackupSchedule } from "../database/backups.js"
 import { hasPendingDatabaseWork } from "../database/pendingWork.js"
 import { requireAuth } from "../security/requireAuth.js"
 
@@ -19,6 +19,10 @@ databaseBackupsRouter.use(requireAuth, (req, res, next) => {
 
 databaseBackupsRouter.get("/", (req, res) => {
     res.send({ backups: listBackups(), schedule: getBackupSchedule() })
+})
+
+databaseBackupsRouter.post("/", (req, res) => {
+    res.status(201).send({ backup: createManualBackup() })
 })
 
 databaseBackupsRouter.put("/schedule", (req, res) => {

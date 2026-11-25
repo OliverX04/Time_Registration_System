@@ -2,6 +2,8 @@
 
 ## Restore from the Supervisor dashboard
 
+Select **Backup now** to save the current database immediately. The new **Manual backup** appears in the restore point list and supports restore and deletion.
+
 1. Sign in as an enabled Supervisor and open **Database backups**.
 2. Select a restore point and confirm **Restore database**. Changes made after that point are rolled back, including changes to accounts and passwords.
 3. Sign in again with credentials that were valid at the selected point. Check the expected projects, attendance and task-time entries.
